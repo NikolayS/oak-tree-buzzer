@@ -236,20 +236,23 @@ public class MainActivity extends Activity {
     interface StringSetter { void set(String value); }
 
     private void selectButton(List<Button> group, Button selected, StringSetter setter) {
-        for (Button btn : group) {
+        String selectedText = selected.getText().toString();
+        for (int i = 0; i < group.size(); i++) {
+            Button btn = group.get(i);
             int origColor = (int) btn.getTag();
-            GradientDrawable bg = new GradientDrawable();
-            bg.setCornerRadius(dp(6));
-            if (btn == selected) {
-                bg.setColor(COLOR_SELECTED);
-                btn.setTextColor(COLOR_SELECTED_TEXT);
-            } else {
-                bg.setColor(origColor);
-                btn.setTextColor(Color.WHITE);
-            }
-            btn.setBackground(bg);
+            boolean isSelected = (btn == selected);
+            setButtonAppearance(btn, isSelected ? COLOR_SELECTED : origColor,
+                                isSelected ? COLOR_SELECTED_TEXT : Color.WHITE);
         }
-        setter.set(selected.getText().toString());
+        setter.set(selectedText);
+    }
+
+    private void setButtonAppearance(Button btn, int bgColor, int textColor) {
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(6));
+        bg.setColor(bgColor);
+        btn.setBackground(bg);
+        btn.setTextColor(textColor);
     }
 
     private void resetSelection() {
@@ -264,11 +267,7 @@ public class MainActivity extends Activity {
     private void resetGroup(List<Button> group) {
         for (Button btn : group) {
             int origColor = (int) btn.getTag();
-            GradientDrawable bg = new GradientDrawable();
-            bg.setCornerRadius(dp(6));
-            bg.setColor(origColor);
-            btn.setBackground(bg);
-            btn.setTextColor(Color.WHITE);
+            setButtonAppearance(btn, origColor, Color.WHITE);
         }
     }
 
@@ -294,10 +293,8 @@ public class MainActivity extends Activity {
         String fullMsg = msg.toString();
         String target = sendToAll ? "ALL" : "GROUP";
 
-        // Show locally
-        addLogMessage(fullMsg, target, "");
-
-        // Broadcast via multicast
+        // Don't show locally — the multicast loopback will deliver it back
+        // This prevents duplicate messages in the log
         broadcastMessage(fullMsg + "|" + target);
 
         // Reset after send
