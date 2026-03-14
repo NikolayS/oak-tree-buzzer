@@ -56,13 +56,13 @@ public class MainActivity extends Activity {
     private static final java.util.Map<String, Integer> ROOM_COLORS = new java.util.LinkedHashMap<String, Integer>() {{
         put("Op1",  Color.parseColor("#C8A882")); // Light tan/beige brown
         put("Op2",  Color.parseColor("#2E7D32")); // Dark Green
-        put("Op3",  Color.parseColor("#F4511E")); // Orange
+        put("Op3",  Color.parseColor("#FF8C00")); // Vivid Orange
         put("Op4",  Color.parseColor("#E91E63")); // Pink
         put("Op5",  Color.parseColor("#A1672A")); // Honey Brown
         put("Op6",  Color.parseColor("#D7CCC8")); // Beige (swapped with Op1)
         put("Op7",  Color.parseColor("#8BC34A")); // Lime Green
         put("Op8",  Color.parseColor("#212121")); // Black
-        put("Op9",  Color.parseColor("#E53935")); // Red
+        put("Op9",  Color.parseColor("#CC0000")); // Bold Red
         put("Op10", Color.parseColor("#7B1FA2")); // Purple
     }};
 
@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.0.8";
+    private static final String VERSION = "v1.0.9";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
