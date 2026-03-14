@@ -122,7 +122,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.2.2";
+    private static final String VERSION = "v1.2.3";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -802,77 +802,60 @@ public class MainActivity extends Activity {
 
         vibrateAndWake();
 
-        // Soft musical tones using DTMF keys (gentle phone-dial style tones)
-        // Each person = unique DTMF note(s) + rhythm
+        // Soft smooth tones using SUP (supervisory) tones — gentle, not harsh
         switch (staff == null ? "" : staff) {
             case "Dr. Riad":
-                // Single long soft chime — D tone
-                playPattern(ToneGenerator.TONE_DTMF_D, new int[]{0}, new int[]{700});
+                // 1 long soft tone
+                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0}, new int[]{900});
                 break;
             case "Dr. Zaku":
-                // Two gentle tones — A then B
-                playPattern(ToneGenerator.TONE_DTMF_A, new int[]{0}, new int[]{300});
-                playPattern(ToneGenerator.TONE_DTMF_B, new int[]{400}, new int[]{300});
+                // 2 medium soft tones
+                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 500}, new int[]{350, 350});
                 break;
             case "Randi":
-                // Three soft notes — 1, 2, 3
-                playPattern(ToneGenerator.TONE_DTMF_1, new int[]{0}, new int[]{250});
-                playPattern(ToneGenerator.TONE_DTMF_2, new int[]{320}, new int[]{250});
-                playPattern(ToneGenerator.TONE_DTMF_3, new int[]{640}, new int[]{250});
+                // 3 short soft tones
+                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 350, 700}, new int[]{250, 250, 250});
                 break;
             case "Pavlina":
-                // Two notes up — 4 then 6
-                playPattern(ToneGenerator.TONE_DTMF_4, new int[]{0}, new int[]{250});
-                playPattern(ToneGenerator.TONE_DTMF_6, new int[]{350}, new int[]{400});
+                // 2 tones — short then long
+                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 300}, new int[]{200, 500});
                 break;
             case "Amanda":
-                // One short + one long — 7 then 9
-                playPattern(ToneGenerator.TONE_DTMF_7, new int[]{0}, new int[]{200});
-                playPattern(ToneGenerator.TONE_DTMF_9, new int[]{320}, new int[]{500});
+                // 1 short + 1 medium
+                playPattern(ToneGenerator.TONE_SUP_CONGESTION, new int[]{0, 350}, new int[]{250, 400});
                 break;
             case "Lindsay":
-                // Three soft descending — 9, 6, 3
-                playPattern(ToneGenerator.TONE_DTMF_9, new int[]{0}, new int[]{250});
-                playPattern(ToneGenerator.TONE_DTMF_6, new int[]{320}, new int[]{250});
-                playPattern(ToneGenerator.TONE_DTMF_3, new int[]{640}, new int[]{250});
+                // 3 tones with longer gaps
+                playPattern(ToneGenerator.TONE_SUP_CONGESTION, new int[]{0, 400, 800}, new int[]{280, 280, 280});
                 break;
             case "Laura":
-                // Quick double pair — 1,1 pause 2,2
-                playPattern(ToneGenerator.TONE_DTMF_1, new int[]{0}, new int[]{180});
-                playPattern(ToneGenerator.TONE_DTMF_1, new int[]{250}, new int[]{180});
-                playPattern(ToneGenerator.TONE_DTMF_2, new int[]{550}, new int[]{180});
-                playPattern(ToneGenerator.TONE_DTMF_2, new int[]{800}, new int[]{180});
+                // 2 short quick tones
+                playPattern(ToneGenerator.TONE_SUP_RADIO_ACK, new int[]{0, 350}, new int[]{280, 280});
                 break;
             case "Yousef":
-                // One long low tone — 0
-                playPattern(ToneGenerator.TONE_DTMF_0, new int[]{0}, new int[]{700});
+                // 1 long low gentle tone
+                playPattern(ToneGenerator.TONE_SUP_RADIO_NOTAVAIL, new int[]{0}, new int[]{900});
                 break;
             case "Maribel":
-                // Four soft quick notes — 2,4,6,8
-                playPattern(ToneGenerator.TONE_DTMF_2, new int[]{0}, new int[]{180});
-                playPattern(ToneGenerator.TONE_DTMF_4, new int[]{250}, new int[]{180});
-                playPattern(ToneGenerator.TONE_DTMF_6, new int[]{500}, new int[]{180});
-                playPattern(ToneGenerator.TONE_DTMF_8, new int[]{750}, new int[]{180});
+                // 4 short gentle tones
+                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 280, 560, 840}, new int[]{200, 200, 200, 200});
                 break;
             case "Katelyn":
-                // Short + two longs — 5, 8, 8
-                playPattern(ToneGenerator.TONE_DTMF_5, new int[]{0}, new int[]{180});
-                playPattern(ToneGenerator.TONE_DTMF_8, new int[]{280}, new int[]{350});
-                playPattern(ToneGenerator.TONE_DTMF_8, new int[]{730}, new int[]{350});
+                // 2 long gentle tones
+                playPattern(ToneGenerator.TONE_SUP_CONGESTION, new int[]{0, 550}, new int[]{400, 400});
                 break;
             case "Amanda H":
-                // Two rising notes — 3 then 7
-                playPattern(ToneGenerator.TONE_DTMF_3, new int[]{0}, new int[]{250});
-                playPattern(ToneGenerator.TONE_DTMF_7, new int[]{350}, new int[]{400});
+                // 3 tones — long short long
+                playPattern(ToneGenerator.TONE_SUP_RADIO_ACK, new int[]{0, 500, 800}, new int[]{400, 200, 400});
                 break;
             case "Assistant":
-                // Three quick C tones — attention getter
-                playPattern(ToneGenerator.TONE_DTMF_C, new int[]{0}, new int[]{200});
-                playPattern(ToneGenerator.TONE_DTMF_C, new int[]{280}, new int[]{200});
-                playPattern(ToneGenerator.TONE_DTMF_C, new int[]{560}, new int[]{200});
+            case "Hygiene":
+            case "Front":
+                // 3 soft attention tones
+                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 320, 640}, new int[]{250, 250, 250});
                 break;
             default:
-                playPattern(ToneGenerator.TONE_DTMF_5, new int[]{0, 320, 640}, new int[]{200, 200, 200});
+                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 350}, new int[]{300, 300});
                 break;
         }
     }
@@ -902,7 +885,7 @@ public class MainActivity extends Activity {
             final int dur = durationsMs[i];
             handler.postDelayed(() -> {
                 try {
-                    ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_ALARM, ToneGenerator.MAX_VOLUME);
+                    ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_MUSIC, 80);
                     tg.startTone(toneType, dur);
                     handler.postDelayed(tg::release, dur + 100);
                 } catch (Exception ignored) {}
