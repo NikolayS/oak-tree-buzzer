@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v0.9.4";
+    private static final String VERSION = "v0.9.5";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -410,15 +410,22 @@ public class MainActivity extends Activity {
         for (Runnable r : flashRunnables.values()) handler.removeCallbacks(r);
         flashRunnables.clear();
         flashIndices.clear();
-        // Full reset of all buttons back to original
+        // Reset all buttons back to blue, restore Op labels and listeners
         resetGroup(staffButtons);
         resetGroup(actionButtons);
-        resetGroup(locationButtons);
         for (int i = 0; i < locationButtons.size() && i < LOCATIONS.length; i++) {
-            locationButtons.get(i).setText(LOCATIONS[i]);
+            Button btn = locationButtons.get(i);
+            btn.setText(LOCATIONS[i]);
+            // Reset Op button to plain blue (room color only activates on pending)
+            GradientDrawable bg = new GradientDrawable();
+            bg.setCornerRadius(dp(6));
+            bg.setColor(COLOR_LOCATION); // plain blue
+            btn.setBackground(bg);
+            btn.setTextColor(Color.WHITE);
+            btn.setTypeface(Typeface.DEFAULT_BOLD);
             final int idx = i;
-            locationButtons.get(i).setOnClickListener(v ->
-                selectButton(locationButtons, locationButtons.get(idx), b -> selectedLocation = b));
+            btn.setOnClickListener(v ->
+                selectButton(locationButtons, btn, b -> selectedLocation = b));
         }
     }
 
@@ -497,9 +504,9 @@ public class MainActivity extends Activity {
         if (card != null) messageLog.removeView(card);
         activeCards.remove(msgId);
         activeCardMsgViews.remove(msgId);
-        // Restore Op button text (remove ✓ OK overlay) and redraw
+        // Restore Op button to blue
         pendingOpButtons.remove(msgId);
-        // Clear highlight
+        // Clear highlight — redrawButtonHighlights will restore remaining pending state
         clearPendingHighlight(msgId);
     }
 
