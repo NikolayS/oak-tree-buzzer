@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v0.9.3";
+    private static final String VERSION = "v0.9.4";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -344,24 +344,29 @@ public class MainActivity extends Activity {
     private void selectButton(List<Button> group, Button selected, StringSetter setter) {
         String selectedText = selected.getText().toString();
 
-        // Update room color tracker if op selected
+        // If an Op button, update room color tracker
         if (ROOM_COLORS.containsKey(selectedText)) {
-            currentRoomColor = ROOM_COLORS.get(selectedText);
+            currentRoomColor = (int) selected.getTag(); // room color stored in tag
         }
 
-        // Keep all buttons their original color — just mark selection with faint white outline only
         for (int i = 0; i < group.size(); i++) {
             Button btn = group.get(i);
             int origColor = (int) btn.getTag();
             boolean isSelected = (btn == selected);
             if (isSelected) {
-                // Original color + faint white outline to show it's selected
-                GradientDrawable bg = new GradientDrawable();
-                bg.setCornerRadius(dp(6));
-                bg.setColor(origColor);
-                bg.setStroke(dp(3), Color.argb(180, 255, 255, 255));
-                btn.setBackground(bg);
-                btn.setTextColor(Color.WHITE);
+                boolean isOp = ROOM_COLORS.containsKey(selectedText);
+                if (isOp) {
+                    // Op button: show its room color when selected
+                    setButtonAppearanceHighlighted(btn, currentRoomColor);
+                } else {
+                    // Action/Staff: keep blue, faint white outline only
+                    GradientDrawable bg = new GradientDrawable();
+                    bg.setCornerRadius(dp(6));
+                    bg.setColor(origColor);
+                    bg.setStroke(dp(3), Color.argb(180, 255, 255, 255));
+                    btn.setBackground(bg);
+                    btn.setTextColor(Color.WHITE);
+                }
             } else {
                 setButtonAppearance(btn, origColor, Color.WHITE);
             }
