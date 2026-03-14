@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.1.6";
+    private static final String VERSION = "v1.1.7";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -768,14 +768,23 @@ public class MainActivity extends Activity {
     }
 
     private void playBuzzerForStaff(String staff) {
-        // Max volume on ALARM stream
+        // Max volume on ALL streams — belt and suspenders approach
         try {
             AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
             if (am != null) {
                 am.setStreamVolume(AudioManager.STREAM_ALARM,
-                    am.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0);
+                    am.getStreamMaxVolume(AudioManager.STREAM_ALARM),
+                    AudioManager.FLAG_SHOW_UI);
+                am.setStreamVolume(AudioManager.STREAM_MUSIC,
+                    am.getStreamMaxVolume(AudioManager.STREAM_MUSIC), 0);
+                am.setStreamVolume(AudioManager.STREAM_RING,
+                    am.getStreamMaxVolume(AudioManager.STREAM_RING), 0);
+                // Override silent/DND mode
+                am.setMode(AudioManager.MODE_NORMAL);
             }
         } catch (Exception ignored) {}
+
+        vibrateAndWake();
 
         // Each staff member gets a unique tone type + beep pattern
         // Tone types available in ToneGenerator (CDMA tones have distinct pitches)
@@ -835,9 +844,28 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void vibrateAndWake() {
+        try {
+            android.os.Vibrator v = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
+            if (v != null && v.hasVibrator()) {
+                long[] pattern = {0, 150, 100, 150, 100, 400};
+                v.vibrate(pattern, -1);
+            }
+        } catch (Exception ignored) {}
+        try {
+            android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+            if (pm != null) {
+                android.os.PowerManager.WakeLock wl = pm.newWakeLock(
+                    android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK |
+                    android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP, "OakBuzzer:alert");
+                wl.acquire(5000);
+            }
+        } catch (Exception ignored) {}
+    }
+
     private void playPattern(int toneType, int[] delaysMs, int[] durationsMs) {
         try {
-            ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
+            ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_ALARM, ToneGenerator.MAX_VOLUME);
             for (int i = 0; i < delaysMs.length; i++) {
                 final int dur = durationsMs[i];
                 handler.postDelayed(() -> {
