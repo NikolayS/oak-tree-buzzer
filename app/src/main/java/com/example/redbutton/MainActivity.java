@@ -103,12 +103,12 @@ public class MainActivity extends Activity {
     // msgId -> op button that shows ✓ OK overlay
     private final Map<String, Button> pendingOpButtons = new HashMap<>();
 
-    // Action conflict flash: action label -> list of room colors competing for it
-    private Runnable actionFlashRunnable;
-    private int actionFlashIndex = 0;
+    // Action conflict flash: per-button runnables
+    private final Map<Button, Runnable> flashRunnables = new HashMap<>();
+    private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v0.8.7";
+    private static final String VERSION = "v0.8.8";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         messageScroll.setBackgroundColor(COLOR_MSG_BG);
         messageScroll.setPadding(dp(4), dp(2), dp(4), dp(2));
         LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(72)); // compact height
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(90)); // compact but readable
         scrollParams.bottomMargin = dp(6);
         messageScroll.setLayoutParams(scrollParams);
 
@@ -384,10 +384,9 @@ public class MainActivity extends Activity {
         selectedAction = null;
         selectedLocation = null;
         currentRoomColor = Color.parseColor("#1E88E5");
-        if (actionFlashRunnable != null) {
-            handler.removeCallbacks(actionFlashRunnable);
-            actionFlashRunnable = null;
-        }
+        for (Runnable r : flashRunnables.values()) handler.removeCallbacks(r);
+        flashRunnables.clear();
+        flashIndices.clear();
         // Full reset of all buttons back to original
         resetGroup(staffButtons);
         resetGroup(actionButtons);
@@ -503,11 +502,10 @@ public class MainActivity extends Activity {
     }
 
     private void redrawButtonHighlights() {
-        // Stop any existing action conflict flash
-        if (actionFlashRunnable != null) {
-            handler.removeCallbacks(actionFlashRunnable);
-            actionFlashRunnable = null;
-        }
+        // Stop all existing flashes
+        for (Runnable r : flashRunnables.values()) handler.removeCallbacks(r);
+        flashRunnables.clear();
+        flashIndices.clear();
 
         // Reset all buttons to base color and original labels
         resetGroup(staffButtons);
@@ -597,17 +595,19 @@ public class MainActivity extends Activity {
     }
 
     private void startActionFlash(Button btn, List<Integer> colors) {
-        // Flash button border between multiple room colors
-        actionFlashRunnable = new Runnable() {
+        flashIndices.put(btn, 0);
+        Runnable r = new Runnable() {
             @Override public void run() {
                 if (pendingHighlights.isEmpty()) return;
-                int color = colors.get(actionFlashIndex % colors.size());
-                actionFlashIndex++;
+                int idx = flashIndices.containsKey(btn) ? flashIndices.get(btn) : 0;
+                int color = colors.get(idx % colors.size());
+                flashIndices.put(btn, idx + 1);
                 setButtonAppearanceHighlighted(btn, color);
                 handler.postDelayed(this, 600);
             }
         };
-        handler.post(actionFlashRunnable);
+        flashRunnables.put(btn, r);
+        handler.post(r);
     }
 
     private void addLogMessage(String message, String msgId, String extra) {
