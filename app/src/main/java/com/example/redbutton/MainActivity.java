@@ -104,7 +104,7 @@ public class MainActivity extends Activity {
     private final Map<String, Button> pendingOpButtons = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v0.7.0";
+    private static final String VERSION = "v0.7.1";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -493,14 +493,17 @@ public class MainActivity extends Activity {
     }
 
     private void redrawButtonHighlights() {
-        // Reset all Op buttons to original label + base color
-        for (Button btn : locationButtons) {
-            String label = LOCATIONS[locationButtons.indexOf(btn)];
-            btn.setText(label);
-        }
+        // Reset all buttons to base color and original labels
         resetGroup(staffButtons);
         resetGroup(actionButtons);
         resetGroup(locationButtons);
+        for (int i = 0; i < locationButtons.size() && i < LOCATIONS.length; i++) {
+            locationButtons.get(i).setText(LOCATIONS[i]);
+            // Restore original click listener
+            final int idx = i;
+            locationButtons.get(i).setOnClickListener(v ->
+                selectButton(locationButtons, locationButtons.get(idx), b -> selectedLocation = b));
+        }
 
         // Re-apply local composing selection
         if (selectedLocation != null) {
@@ -652,12 +655,7 @@ public class MainActivity extends Activity {
                         String staff  = parts.length > 5 ? parts[5] : "";
                         final String fId = msgId, fMsg = message, fOp = op, fAction = action, fStaff = staff;
                         handler.post(() -> {
-                            // Skip if we already added this message locally (sender)
-                            if (activeCards.containsKey(fId)) return;
-                            // Flash the screen background briefly to confirm receipt
-                            messageScroll.setBackgroundColor(Color.WHITE);
-                            handler.postDelayed(() -> messageScroll.setBackgroundColor(
-                                Color.parseColor("#0d1f3c")), 200);
+                            if (activeCards.containsKey(fId)) return; // already added locally
                             addLogMessage(fMsg, fId, "");
                             applyPendingHighlight(fId, fOp, fAction, fStaff);
                             playBuzzer();
