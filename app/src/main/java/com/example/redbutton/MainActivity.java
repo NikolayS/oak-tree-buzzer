@@ -94,8 +94,11 @@ public class MainActivity extends Activity {
     private final Map<String, LinearLayout> activeCards = new HashMap<>();
     private final Map<String, TextView> activeCardMsgViews = new HashMap<>();
 
-    // Current room color — drives all button highlights
+    // Current room color — drives all button highlights when composing
     private int currentRoomColor = Color.parseColor("#1E88E5"); // default blue
+
+    // Pending button highlights: msgId -> [op, action, staff, roomColor]
+    private final Map<String, String[]> pendingHighlights = new HashMap<>();
 
     // Pending room colors for alternating flash (multiple unacked messages)
     private final List<Integer> pendingRoomColors = new ArrayList<>();
@@ -105,7 +108,7 @@ public class MainActivity extends Activity {
     private static final int FLASH_INTERVAL_MS = 800;
 
     // Colors
-    private static final String VERSION = "v0.5.2";
+    private static final String VERSION = "v0.6.0";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -469,10 +472,12 @@ public class MainActivity extends Activity {
 
         // Use timestamp as message ID — same value seen by all tablets from the broadcast
         String msgId = String.valueOf(System.currentTimeMillis());
-        // Don't show locally — the multicast loopback will deliver it back
-        broadcastMessage("MSG|" + msgId + "|" + msg.toString());
-
-        // Keep selection highlighted after send
+        String opPart = selectedLocation != null ? selectedLocation : "";
+        String actionPart = selectedAction != null ? selectedAction : "";
+        String staffPart = selectedStaff != null ? selectedStaff : "";
+        // Format: MSG|id|displayText|op|action|staff
+        broadcastMessage("MSG|" + msgId + "|" + msg.toString()
+            + "|" + opPart + "|" + actionPart + "|" + staffPart);
     }
 
     private void acknowledgeCard(String msgId) {
@@ -482,6 +487,47 @@ public class MainActivity extends Activity {
         activeCards.remove(msgId);
         activeCardMsgViews.remove(msgId);
         removePendingColor(msgId);
+        clearPendingHighlight(msgId);
+    }
+
+    private void applyPendingHighlight(String msgId, String op, String action, String staff) {
+        int roomColor = ROOM_COLORS.containsKey(op) ? ROOM_COLORS.get(op) : Color.parseColor("#1E88E5");
+        pendingHighlights.put(msgId, new String[]{op, action, staff, String.valueOf(roomColor)});
+        redrawButtonHighlights();
+    }
+
+    private void clearPendingHighlight(String msgId) {
+        pendingHighlights.remove(msgId);
+        redrawButtonHighlights();
+    }
+
+    private void redrawButtonHighlights() {
+        // Reset all buttons to their base color first
+        resetGroup(staffButtons);
+        resetGroup(actionButtons);
+        resetGroup(locationButtons);
+
+        // Apply all pending highlights (multiple ops can light up simultaneously)
+        for (String[] h : pendingHighlights.values()) {
+            String op = h[0], action = h[1], staff = h[2];
+            int roomColor = Integer.parseInt(h[3]);
+
+            for (Button btn : locationButtons) {
+                if (btn.getText().toString().equals(op)) {
+                    setButtonAppearanceHighlighted(btn, roomColor);
+                }
+            }
+            for (Button btn : actionButtons) {
+                if (btn.getText().toString().equals(action)) {
+                    setButtonAppearanceHighlighted(btn, roomColor);
+                }
+            }
+            for (Button btn : staffButtons) {
+                if (btn.getText().toString().equals(staff)) {
+                    setButtonAppearanceHighlighted(btn, roomColor);
+                }
+            }
+        }
     }
 
     private void addLogMessage(String message, String msgId, String extra) {
@@ -617,23 +663,22 @@ public class MainActivity extends Activity {
                     String received = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
 
                     if (received.startsWith("ACK|")) {
-                        // Another tablet acknowledged — dim that card here too
                         String ackId = received.substring(4);
                         handler.post(() -> acknowledgeCard(ackId));
-                    } else {
-                        // Parse: "MSG|id|message text"
-                        String msgId = "";
-                        String message = received;
-                        if (received.startsWith("MSG|")) {
-                            String[] parts = received.split("\\|", 3);
-                            msgId = parts.length > 1 ? parts[1] : "";
-                            message = parts.length > 2 ? parts[2] : received;
-                        }
-                        // Play buzzer
+                    } else if (received.startsWith("MSG|")) {
+                        // Format: MSG|id|displayText|op|action|staff
+                        String[] parts = received.split("\\|", 6);
+                        String msgId  = parts.length > 1 ? parts[1] : "";
+                        String message = parts.length > 2 ? parts[2] : "";
+                        String op     = parts.length > 3 ? parts[3] : "";
+                        String action = parts.length > 4 ? parts[4] : "";
+                        String staff  = parts.length > 5 ? parts[5] : "";
                         playBuzzer();
-                        final String finalMsgId = msgId;
-                        final String finalMsg = message;
-                        handler.post(() -> addLogMessage(finalMsg, finalMsgId, ""));
+                        final String fId = msgId, fMsg = message, fOp = op, fAction = action, fStaff = staff;
+                        handler.post(() -> {
+                            addLogMessage(fMsg, fId, "");
+                            applyPendingHighlight(fId, fOp, fAction, fStaff);
+                        });
                     }
                 }
             } catch (Exception e) {
