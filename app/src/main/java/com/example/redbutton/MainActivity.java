@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v0.9.6";
+    private static final String VERSION = "v0.9.9";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
