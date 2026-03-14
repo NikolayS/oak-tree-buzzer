@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.0.5";
+    private static final String VERSION = "v1.0.6";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -401,8 +401,12 @@ public class MainActivity extends Activity {
     }
 
     private void resetAllCommands() {
-        // Broadcast ACK for every pending message so all tablets clear
-        for (String msgId : new ArrayList<>(activeCards.keySet())) {
+        // Broadcast ACK for every pending message so all tablets clear.
+        // Use union of activeCards + pendingHighlights — they should match but may diverge.
+        java.util.Set<String> allIds = new java.util.HashSet<>();
+        allIds.addAll(activeCards.keySet());
+        allIds.addAll(pendingHighlights.keySet());
+        for (String msgId : allIds) {
             broadcastMessage("ACK|" + msgId);
         }
         // Clear all state
@@ -421,6 +425,9 @@ public class MainActivity extends Activity {
         resetGroup(staffButtons);
         resetGroup(actionButtons);
         resetLocationButtons();
+        // Clear the message log
+        messageLog.removeAllViews();
+        addLogMessage("System", "Ready", "");
     }
 
     private void resetSelection() {
