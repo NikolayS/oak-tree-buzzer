@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private int actionFlashIndex = 0;
 
     // Colors
-    private static final String VERSION = "v0.8.1";
+    private static final String VERSION = "v0.8.2";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -369,10 +369,11 @@ public class MainActivity extends Activity {
     }
 
     private void setButtonAppearanceHighlighted(Button btn, int roomColor) {
-        // Fill button with the Op's room color, white text — clean solid color match
+        // Fill with room color + faint white outline
         GradientDrawable bg = new GradientDrawable();
         bg.setCornerRadius(dp(6));
         bg.setColor(roomColor);
+        bg.setStroke(dp(1), Color.argb(80, 255, 255, 255)); // faint white outline
         btn.setBackground(bg);
         btn.setTextColor(Color.WHITE);
         btn.setTypeface(Typeface.DEFAULT_BOLD);
@@ -548,9 +549,16 @@ public class MainActivity extends Activity {
 
             // Op button: highlight + show "✓ Op#" — tap to acknowledge
             for (Button btn : locationButtons) {
-                if (btn.getText().toString().equals(op) || btn.getText().toString().equals("✓ " + op)) {
-                    setButtonAppearanceHighlighted(btn, roomColor);
-                    btn.setText("✓ " + op);
+                if (btn.getText().toString().equals(op) || btn.getText().toString().startsWith(op + "\n")) {
+                    // Fill with room color, faint white outline, small OK label below op name
+                    GradientDrawable opBg = new GradientDrawable();
+                    opBg.setCornerRadius(dp(6));
+                    opBg.setColor(roomColor);
+                    opBg.setStroke(dp(1), Color.argb(80, 255, 255, 255)); // faint white outline
+                    btn.setBackground(opBg);
+                    btn.setText(op + "\n✓ ok");
+                    btn.setTextColor(Color.WHITE);
+                    btn.setTypeface(Typeface.DEFAULT_BOLD);
                     final String ackId = pendingMsgId;
                     btn.setOnClickListener(v -> {
                         acknowledgeCard(ackId);
