@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private static final int FLASH_INTERVAL_MS = 800;
 
     // Colors
-    private static final String VERSION = "v0.6.2";
+    private static final String VERSION = "v0.6.3";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -367,16 +367,11 @@ public class MainActivity extends Activity {
     }
 
     private void setButtonAppearanceHighlighted(Button btn, int roomColor) {
-        // Brighten the room color for selected state + white stroke border
-        int r = Math.min(255, (int)(Color.red(roomColor) * 1.5f + 60));
-        int g = Math.min(255, (int)(Color.green(roomColor) * 1.5f + 60));
-        int b = Math.min(255, (int)(Color.blue(roomColor) * 1.5f + 60));
-        int brightColor = Color.rgb(r, g, b);
-
+        // Keep exact room color, just add thick white border to show selected
         GradientDrawable bg = new GradientDrawable();
         bg.setCornerRadius(dp(6));
-        bg.setColor(brightColor);
-        bg.setStroke(dp(3), Color.WHITE);
+        bg.setColor(roomColor);
+        bg.setStroke(dp(4), Color.WHITE);
         btn.setBackground(bg);
         btn.setTextColor(Color.WHITE);
     }
@@ -713,9 +708,13 @@ public class MainActivity extends Activity {
                         handler.post(() -> {
                             // Skip if we already added this message locally (sender)
                             if (activeCards.containsKey(fId)) return;
-                            playBuzzer();
+                            // Flash the screen background briefly to confirm receipt
+                            messageScroll.setBackgroundColor(Color.WHITE);
+                            handler.postDelayed(() -> messageScroll.setBackgroundColor(
+                                Color.parseColor("#0d1f3c")), 200);
                             addLogMessage(fMsg, fId, "");
                             applyPendingHighlight(fId, fOp, fAction, fStaff);
+                            playBuzzer();
                         });
                     }
                 }
