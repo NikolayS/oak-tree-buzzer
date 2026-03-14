@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private static final int FLASH_INTERVAL_MS = 800;
 
     // Colors
-    private static final String VERSION = "v0.6.3";
+    private static final String VERSION = "v0.6.4";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -175,7 +175,9 @@ public class MainActivity extends Activity {
         barParams.topMargin = dp(12);
         bottomBar.setLayoutParams(barParams);
 
+        Button resetBtn = makeControlButton("Reset", Color.parseColor("#B71C1C"), v -> resetAllCommands());
         sendButton = makeControlButton("Send", COLOR_SEND, v -> sendMessage());
+        bottomBar.addView(resetBtn);
         bottomBar.addView(sendButton);
         root.addView(bottomBar);
 
@@ -374,6 +376,22 @@ public class MainActivity extends Activity {
         bg.setStroke(dp(4), Color.WHITE);
         btn.setBackground(bg);
         btn.setTextColor(Color.WHITE);
+    }
+
+    private void resetAllCommands() {
+        // Broadcast ACK for every pending message so all tablets clear
+        for (String msgId : new ArrayList<>(activeCards.keySet())) {
+            broadcastMessage("ACK|" + msgId);
+            acknowledgeCard(msgId);
+        }
+        // Clear local composing state
+        selectedStaff = null;
+        selectedAction = null;
+        selectedLocation = null;
+        currentRoomColor = Color.parseColor("#1E88E5");
+        resetGroup(staffButtons);
+        resetGroup(actionButtons);
+        resetGroup(locationButtons);
     }
 
     private void resetSelection() {
