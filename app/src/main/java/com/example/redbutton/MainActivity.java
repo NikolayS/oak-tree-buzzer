@@ -54,7 +54,7 @@ public class MainActivity extends Activity {
 
     // Room colors — actual room identity colors per Dr. Riad
     private static final java.util.Map<String, Integer> ROOM_COLORS = new java.util.LinkedHashMap<String, Integer>() {{
-        put("Op1",  Color.parseColor("#4E342E")); // Dark Brown/Grey (swapped with Op6)
+        put("Op1",  Color.parseColor("#C8A882")); // Light tan/beige brown
         put("Op2",  Color.parseColor("#2E7D32")); // Dark Green
         put("Op3",  Color.parseColor("#F4511E")); // Orange
         put("Op4",  Color.parseColor("#E91E63")); // Pink
@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.0.7";
+    private static final String VERSION = "v1.0.8";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
