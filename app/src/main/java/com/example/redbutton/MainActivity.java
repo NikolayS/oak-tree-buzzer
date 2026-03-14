@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private int actionFlashIndex = 0;
 
     // Colors
-    private static final String VERSION = "v0.8.0";
+    private static final String VERSION = "v0.8.1";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -368,15 +368,14 @@ public class MainActivity extends Activity {
         btn.setTextColor(textColor);
     }
 
-    private void setButtonAppearanceHighlighted(Button btn, int ignored) {
-        // Keep the button's own original color — just add a bright white border
-        int origColor = (int) btn.getTag();
+    private void setButtonAppearanceHighlighted(Button btn, int roomColor) {
+        // Fill button with the Op's room color, white text — clean solid color match
         GradientDrawable bg = new GradientDrawable();
         bg.setCornerRadius(dp(6));
-        bg.setColor(origColor);
-        bg.setStroke(dp(4), Color.WHITE);
+        bg.setColor(roomColor);
         btn.setBackground(bg);
         btn.setTextColor(Color.WHITE);
+        btn.setTypeface(Typeface.DEFAULT_BOLD);
     }
 
     private void resetAllCommands() {
