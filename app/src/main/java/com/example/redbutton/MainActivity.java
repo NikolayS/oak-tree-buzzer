@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.1.8";
+    private static final String VERSION = "v1.1.9";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -786,60 +786,77 @@ public class MainActivity extends Activity {
 
         vibrateAndWake();
 
-        // Each staff member gets a unique tone type + beep pattern
-        // Tone types available in ToneGenerator (CDMA tones have distinct pitches)
+        // Soft musical tones using DTMF keys (gentle phone-dial style tones)
+        // Each person = unique DTMF note(s) + rhythm
         switch (staff == null ? "" : staff) {
             case "Dr. Riad":
-                // 1 long high tone — the boss
-                playPattern(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, new int[]{0}, new int[]{800});
+                // Single long soft chime — D tone
+                playPattern(ToneGenerator.TONE_DTMF_D, new int[]{0}, new int[]{700});
                 break;
             case "Dr. Zaku":
-                // 2 medium tones
-                playPattern(ToneGenerator.TONE_CDMA_SOFT_ERROR_LITE, new int[]{0, 400}, new int[]{300, 300});
+                // Two gentle tones — A then B
+                playPattern(ToneGenerator.TONE_DTMF_A, new int[]{0}, new int[]{300});
+                playPattern(ToneGenerator.TONE_DTMF_B, new int[]{400}, new int[]{300});
                 break;
             case "Randi":
-                // 3 short high beeps
-                playPattern(ToneGenerator.TONE_PROP_BEEP2, new int[]{0, 250, 500}, new int[]{200, 200, 200});
+                // Three soft notes — 1, 2, 3
+                playPattern(ToneGenerator.TONE_DTMF_1, new int[]{0}, new int[]{250});
+                playPattern(ToneGenerator.TONE_DTMF_2, new int[]{320}, new int[]{250});
+                playPattern(ToneGenerator.TONE_DTMF_3, new int[]{640}, new int[]{250});
                 break;
             case "Pavlina":
-                // 2 short + 1 long
-                playPattern(ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE, new int[]{0, 250, 500}, new int[]{150, 150, 400});
+                // Two notes up — 4 then 6
+                playPattern(ToneGenerator.TONE_DTMF_4, new int[]{0}, new int[]{250});
+                playPattern(ToneGenerator.TONE_DTMF_6, new int[]{350}, new int[]{400});
                 break;
             case "Amanda":
-                // 1 short + 1 long
-                playPattern(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, new int[]{0, 300}, new int[]{200, 500});
+                // One short + one long — 7 then 9
+                playPattern(ToneGenerator.TONE_DTMF_7, new int[]{0}, new int[]{200});
+                playPattern(ToneGenerator.TONE_DTMF_9, new int[]{320}, new int[]{500});
                 break;
             case "Lindsay":
-                // 3 medium tones descending feel
-                playPattern(ToneGenerator.TONE_CDMA_SOFT_ERROR_LITE, new int[]{0, 350, 700}, new int[]{250, 250, 250});
+                // Three soft descending — 9, 6, 3
+                playPattern(ToneGenerator.TONE_DTMF_9, new int[]{0}, new int[]{250});
+                playPattern(ToneGenerator.TONE_DTMF_6, new int[]{320}, new int[]{250});
+                playPattern(ToneGenerator.TONE_DTMF_3, new int[]{640}, new int[]{250});
                 break;
             case "Laura":
-                // 2 quick double-beeps
-                playPattern(ToneGenerator.TONE_PROP_BEEP, new int[]{0, 200, 500, 700}, new int[]{150, 150, 150, 150});
+                // Quick double pair — 1,1 pause 2,2
+                playPattern(ToneGenerator.TONE_DTMF_1, new int[]{0}, new int[]{180});
+                playPattern(ToneGenerator.TONE_DTMF_1, new int[]{250}, new int[]{180});
+                playPattern(ToneGenerator.TONE_DTMF_2, new int[]{550}, new int[]{180});
+                playPattern(ToneGenerator.TONE_DTMF_2, new int[]{800}, new int[]{180});
                 break;
             case "Yousef":
-                // 1 long low tone
-                playPattern(ToneGenerator.TONE_CDMA_ALERT_AUTOREDIAL_LITE, new int[]{0}, new int[]{700});
+                // One long low tone — 0
+                playPattern(ToneGenerator.TONE_DTMF_0, new int[]{0}, new int[]{700});
                 break;
             case "Maribel":
-                // 4 short quick beeps
-                playPattern(ToneGenerator.TONE_PROP_BEEP2, new int[]{0, 200, 400, 600}, new int[]{150, 150, 150, 150});
+                // Four soft quick notes — 2,4,6,8
+                playPattern(ToneGenerator.TONE_DTMF_2, new int[]{0}, new int[]{180});
+                playPattern(ToneGenerator.TONE_DTMF_4, new int[]{250}, new int[]{180});
+                playPattern(ToneGenerator.TONE_DTMF_6, new int[]{500}, new int[]{180});
+                playPattern(ToneGenerator.TONE_DTMF_8, new int[]{750}, new int[]{180});
                 break;
             case "Katelyn":
-                // 1 short + 2 long
-                playPattern(ToneGenerator.TONE_CDMA_NETWORK_BUSY, new int[]{0, 250, 600}, new int[]{150, 350, 350});
+                // Short + two longs — 5, 8, 8
+                playPattern(ToneGenerator.TONE_DTMF_5, new int[]{0}, new int[]{180});
+                playPattern(ToneGenerator.TONE_DTMF_8, new int[]{280}, new int[]{350});
+                playPattern(ToneGenerator.TONE_DTMF_8, new int[]{730}, new int[]{350});
                 break;
             case "Amanda H":
-                // 2 short high + 1 medium
-                playPattern(ToneGenerator.TONE_CDMA_ALERT_INCALL_LITE, new int[]{0, 250, 500}, new int[]{150, 150, 300});
+                // Two rising notes — 3 then 7
+                playPattern(ToneGenerator.TONE_DTMF_3, new int[]{0}, new int[]{250});
+                playPattern(ToneGenerator.TONE_DTMF_7, new int[]{350}, new int[]{400});
                 break;
             case "Assistant":
-                // 5 rapid short beeps — urgent
-                playPattern(ToneGenerator.TONE_PROP_BEEP, new int[]{0, 150, 300, 450, 600}, new int[]{120, 120, 120, 120, 120});
+                // Three quick C tones — attention getter
+                playPattern(ToneGenerator.TONE_DTMF_C, new int[]{0}, new int[]{200});
+                playPattern(ToneGenerator.TONE_DTMF_C, new int[]{280}, new int[]{200});
+                playPattern(ToneGenerator.TONE_DTMF_C, new int[]{560}, new int[]{200});
                 break;
             default:
-                // Generic 3 beeps
-                playPattern(ToneGenerator.TONE_PROP_BEEP, new int[]{0, 300, 600}, new int[]{200, 200, 200});
+                playPattern(ToneGenerator.TONE_DTMF_5, new int[]{0, 320, 640}, new int[]{200, 200, 200});
                 break;
         }
     }
@@ -864,17 +881,17 @@ public class MainActivity extends Activity {
     }
 
     private void playPattern(int toneType, int[] delaysMs, int[] durationsMs) {
-        try {
-            ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_ALARM, ToneGenerator.MAX_VOLUME);
-            for (int i = 0; i < delaysMs.length; i++) {
-                final int dur = durationsMs[i];
-                handler.postDelayed(() -> {
-                    try { tg.startTone(toneType, dur); } catch (Exception ignored) {}
-                }, delaysMs[i]);
-            }
-            int lastDelay = delaysMs[delaysMs.length - 1] + durationsMs[durationsMs.length - 1] + 200;
-            handler.postDelayed(tg::release, lastDelay);
-        } catch (Exception ignored) {}
+        // Each call schedules its own independent beep sequence
+        for (int i = 0; i < delaysMs.length; i++) {
+            final int dur = durationsMs[i];
+            handler.postDelayed(() -> {
+                try {
+                    ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_ALARM, ToneGenerator.MAX_VOLUME);
+                    tg.startTone(toneType, dur);
+                    handler.postDelayed(tg::release, dur + 100);
+                } catch (Exception ignored) {}
+            }, delaysMs[i]);
+        }
     }
 
     private void playBuzzer() {
