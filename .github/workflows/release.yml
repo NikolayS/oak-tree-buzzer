@@ -32,6 +32,9 @@ jobs:
           sed -i "s/private static final String VERSION = \".*\"/private static final String VERSION = \"${TAG}\"/" \
             app/src/main/java/com/example/redbutton/MainActivity.java
 
+      - name: Run unit tests
+        run: ./gradlew test
+
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
