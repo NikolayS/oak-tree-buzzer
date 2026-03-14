@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v0.9.2";
+    private static final String VERSION = "v0.9.3";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -295,11 +295,12 @@ public class MainActivity extends Activity {
             btn.setTypeface(Typeface.DEFAULT_BOLD);
             btn.setAllCaps(false);
 
+            // Start blue like all other buttons; room color activates on pending request
             GradientDrawable bg = new GradientDrawable();
             bg.setCornerRadius(dp(6));
-            bg.setColor(roomColor);
+            bg.setColor(COLOR_LOCATION); // same blue as action/staff buttons
             btn.setBackground(bg);
-            btn.setTag(roomColor);
+            btn.setTag(roomColor); // store room color for later activation
             btn.setPadding(dp(12), dp(10), dp(12), dp(10));
 
             GridLayout.LayoutParams params = new GridLayout.LayoutParams();
