@@ -38,7 +38,7 @@ public class MainActivity extends Activity {
     // === CONFIGURATION ===
     // Staff (who)
     private static final String[] STAFF = {
-        "Dr. Riad", "Dr. Zaku", "Randi", "Pavlina", "Amanda", "Lindsay", "Laura", "Yousef", "Maribel", "Assistant"
+        "Dr. Riad", "Dr. Zaku", "Randi", "Pavlina", "Amanda", "Lindsay", "Laura", "Yousef", "Maribel", "Katelyn", "Amanda H", "Assistant"
     };
 
     // Actions (what)
@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.1.4";
+    private static final String VERSION = "v1.1.5";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
