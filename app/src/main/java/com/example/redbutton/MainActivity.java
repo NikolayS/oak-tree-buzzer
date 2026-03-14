@@ -52,21 +52,18 @@ public class MainActivity extends Activity {
         "Op6", "Op7", "Op8", "Op9", "Op10"
     };
 
-    // Room colors — inspired by real chair colors in the office
+    // Room colors — actual room identity colors per Dr. Riad
     private static final java.util.Map<String, Integer> ROOM_COLORS = new java.util.LinkedHashMap<String, Integer>() {{
-        // Op1–Op4: orange chairs — warm amber/orange gradient
-        put("Op1",  Color.parseColor("#FFB300")); // Amber
-        put("Op2",  Color.parseColor("#FB8C00")); // Orange
-        put("Op3",  Color.parseColor("#F4511E")); // Deep Orange
-        put("Op4",  Color.parseColor("#BF360C")); // Burnt Orange
-        // Op5–Op8: black chairs — dark charcoal/slate gradient
-        put("Op5",  Color.parseColor("#455A64")); // Blue Grey
-        put("Op6",  Color.parseColor("#37474F")); // Darker Blue Grey
-        put("Op7",  Color.parseColor("#263238")); // Near Black
-        put("Op8",  Color.parseColor("#1C2B30")); // Almost Black
-        // Op9–Op10: Dr. Riad — cyan
-        put("Op9",  Color.parseColor("#00ACC1")); // Cyan
-        put("Op10", Color.parseColor("#00838F")); // Deep Cyan
+        put("Op1",  Color.parseColor("#D7CCC8")); // Beige
+        put("Op2",  Color.parseColor("#2E7D32")); // Dark Green
+        put("Op3",  Color.parseColor("#F4511E")); // Orange
+        put("Op4",  Color.parseColor("#E91E63")); // Pink
+        put("Op5",  Color.parseColor("#A1672A")); // Honey Brown
+        put("Op6",  Color.parseColor("#4E342E")); // Dark Brown/Grey
+        put("Op7",  Color.parseColor("#8BC34A")); // Lime Green
+        put("Op8",  Color.parseColor("#212121")); // Black
+        put("Op9",  Color.parseColor("#E53935")); // Red
+        put("Op10", Color.parseColor("#7B1FA2")); // Purple
     }};
 
     // Multicast config
@@ -108,7 +105,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v0.9.5";
+    private static final String VERSION = "v0.9.6";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
