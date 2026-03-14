@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.1.5";
+    private static final String VERSION = "v1.1.6";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -751,9 +751,9 @@ public class MainActivity extends Activity {
                         final String fId = msgId, fMsg = message, fOp = op, fAction = action, fStaff = staff;
                         handler.post(() -> {
                             if (activeCards.containsKey(fId)) return; // already added locally
-                            addLogMessage(fMsg, fId, "");
+                            addLogMessage(fMsg, fId, fOp);
                             applyPendingHighlight(fId, fOp, fAction, fStaff);
-                            playBuzzer();
+                            playBuzzerForStaff(fStaff);
                         });
                     }
                 }
@@ -767,21 +767,89 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private void playBuzzer() {
-        // Max volume on ALARM stream (bypasses silent/notification volume)
+    private void playBuzzerForStaff(String staff) {
+        // Max volume on ALARM stream
         try {
             AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
             if (am != null) {
                 am.setStreamVolume(AudioManager.STREAM_ALARM,
                     am.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0);
             }
-            // Three sharp beeps
-            ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
-            tg.startTone(ToneGenerator.TONE_PROP_BEEP, 200);
-            handler.postDelayed(() -> tg.startTone(ToneGenerator.TONE_PROP_BEEP, 200), 300);
-            handler.postDelayed(() -> tg.startTone(ToneGenerator.TONE_PROP_BEEP, 400), 600);
-            handler.postDelayed(tg::release, 1200);
         } catch (Exception ignored) {}
+
+        // Each staff member gets a unique tone type + beep pattern
+        // Tone types available in ToneGenerator (CDMA tones have distinct pitches)
+        switch (staff == null ? "" : staff) {
+            case "Dr. Riad":
+                // 1 long high tone — the boss
+                playPattern(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, new int[]{0}, new int[]{800});
+                break;
+            case "Dr. Zaku":
+                // 2 medium tones
+                playPattern(ToneGenerator.TONE_CDMA_SOFT_ERROR_LITE, new int[]{0, 400}, new int[]{300, 300});
+                break;
+            case "Randi":
+                // 3 short high beeps
+                playPattern(ToneGenerator.TONE_PROP_BEEP2, new int[]{0, 250, 500}, new int[]{200, 200, 200});
+                break;
+            case "Pavlina":
+                // 2 short + 1 long
+                playPattern(ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE, new int[]{0, 250, 500}, new int[]{150, 150, 400});
+                break;
+            case "Amanda":
+                // 1 short + 1 long
+                playPattern(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, new int[]{0, 300}, new int[]{200, 500});
+                break;
+            case "Lindsay":
+                // 3 medium tones descending feel
+                playPattern(ToneGenerator.TONE_CDMA_SOFT_ERROR_LITE, new int[]{0, 350, 700}, new int[]{250, 250, 250});
+                break;
+            case "Laura":
+                // 2 quick double-beeps
+                playPattern(ToneGenerator.TONE_PROP_BEEP, new int[]{0, 200, 500, 700}, new int[]{150, 150, 150, 150});
+                break;
+            case "Yousef":
+                // 1 long low tone
+                playPattern(ToneGenerator.TONE_CDMA_ALERT_AUTOREDIAL_LITE, new int[]{0}, new int[]{700});
+                break;
+            case "Maribel":
+                // 4 short quick beeps
+                playPattern(ToneGenerator.TONE_PROP_BEEP2, new int[]{0, 200, 400, 600}, new int[]{150, 150, 150, 150});
+                break;
+            case "Katelyn":
+                // 1 short + 2 long
+                playPattern(ToneGenerator.TONE_CDMA_NETWORK_BUSY, new int[]{0, 250, 600}, new int[]{150, 350, 350});
+                break;
+            case "Amanda H":
+                // 2 short high + 1 medium
+                playPattern(ToneGenerator.TONE_CDMA_ALERT_INCALL_LITE, new int[]{0, 250, 500}, new int[]{150, 150, 300});
+                break;
+            case "Assistant":
+                // 5 rapid short beeps — urgent
+                playPattern(ToneGenerator.TONE_PROP_BEEP, new int[]{0, 150, 300, 450, 600}, new int[]{120, 120, 120, 120, 120});
+                break;
+            default:
+                // Generic 3 beeps
+                playPattern(ToneGenerator.TONE_PROP_BEEP, new int[]{0, 300, 600}, new int[]{200, 200, 200});
+                break;
+        }
+    }
+
+    private void playPattern(int toneType, int[] delaysMs, int[] durationsMs) {
+        try {
+            ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
+            for (int i = 0; i < delaysMs.length; i++) {
+                final int dur = durationsMs[i];
+                handler.postDelayed(() -> {
+                    try { tg.startTone(toneType, dur); } catch (Exception ignored) {}
+                }, delaysMs[i]);
+            }
+            int lastDelay = delaysMs[delaysMs.length - 1] + durationsMs[durationsMs.length - 1] + 200;
+            handler.postDelayed(tg::release, lastDelay);
+        } catch (Exception ignored) {}
+    }
+
+    private void playBuzzer() {
 
         // Vibration pattern: short-short-long
         try {
