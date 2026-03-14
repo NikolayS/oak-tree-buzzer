@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private static final int FLASH_INTERVAL_MS = 800;
 
     // Colors
-    private static final String VERSION = "v0.6.1";
+    private static final String VERSION = "v0.6.2";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -477,9 +477,26 @@ public class MainActivity extends Activity {
         String opPart = selectedLocation != null ? selectedLocation : "";
         String actionPart = selectedAction != null ? selectedAction : "";
         String staffPart = selectedStaff != null ? selectedStaff : "";
+        String fullMsg = msg.toString();
+
+        // Apply highlight locally immediately (sender may not receive own multicast)
+        addLogMessage(fullMsg, msgId, "");
+        applyPendingHighlight(msgId, opPart, actionPart, staffPart);
+
+        // Broadcast to all other tablets
         // Format: MSG|id|displayText|op|action|staff
-        broadcastMessage("MSG|" + msgId + "|" + msg.toString()
+        broadcastMessage("MSG|" + msgId + "|" + fullMsg
             + "|" + opPart + "|" + actionPart + "|" + staffPart);
+
+        // Clear local composing selection
+        selectedStaff = null;
+        selectedAction = null;
+        selectedLocation = null;
+        currentRoomColor = Color.parseColor("#1E88E5");
+        resetGroup(staffButtons);
+        resetGroup(actionButtons);
+        resetGroup(locationButtons);
+        redrawButtonHighlights(); // re-apply pending received highlights
     }
 
     private void acknowledgeCard(String msgId) {
@@ -692,9 +709,11 @@ public class MainActivity extends Activity {
                         String op     = parts.length > 3 ? parts[3] : "";
                         String action = parts.length > 4 ? parts[4] : "";
                         String staff  = parts.length > 5 ? parts[5] : "";
-                        playBuzzer();
                         final String fId = msgId, fMsg = message, fOp = op, fAction = action, fStaff = staff;
                         handler.post(() -> {
+                            // Skip if we already added this message locally (sender)
+                            if (activeCards.containsKey(fId)) return;
+                            playBuzzer();
                             addLogMessage(fMsg, fId, "");
                             applyPendingHighlight(fId, fOp, fAction, fStaff);
                         });
