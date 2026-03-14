@@ -103,8 +103,12 @@ public class MainActivity extends Activity {
     // msgId -> op button that shows ✓ OK overlay
     private final Map<String, Button> pendingOpButtons = new HashMap<>();
 
+    // Action conflict flash: action label -> list of room colors competing for it
+    private Runnable actionFlashRunnable;
+    private int actionFlashIndex = 0;
+
     // Colors
-    private static final String VERSION = "v0.7.2";
+    private static final String VERSION = "v0.8.0";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -494,19 +498,24 @@ public class MainActivity extends Activity {
     }
 
     private void redrawButtonHighlights() {
+        // Stop any existing action conflict flash
+        if (actionFlashRunnable != null) {
+            handler.removeCallbacks(actionFlashRunnable);
+            actionFlashRunnable = null;
+        }
+
         // Reset all buttons to base color and original labels
         resetGroup(staffButtons);
         resetGroup(actionButtons);
         resetGroup(locationButtons);
         for (int i = 0; i < locationButtons.size() && i < LOCATIONS.length; i++) {
             locationButtons.get(i).setText(LOCATIONS[i]);
-            // Restore original click listener
             final int idx = i;
             locationButtons.get(i).setOnClickListener(v ->
                 selectButton(locationButtons, locationButtons.get(idx), b -> selectedLocation = b));
         }
 
-        // Re-apply local composing selection
+        // Re-apply local composing selection (this tablet, not yet sent)
         if (selectedLocation != null) {
             for (Button btn : locationButtons) {
                 if (btn.getText().toString().equals(selectedLocation))
@@ -526,37 +535,87 @@ public class MainActivity extends Activity {
             }
         }
 
-        // Apply all pending received highlights — Op button shows ✓ OK text
+        if (pendingHighlights.isEmpty()) return;
+
+        // Build maps: action -> list of room colors, staff -> list of room colors
+        Map<String, List<Integer>> actionConflicts = new HashMap<>();
+        Map<String, List<Integer>> staffConflicts = new HashMap<>();
+
         for (Map.Entry<String, String[]> entry : pendingHighlights.entrySet()) {
             String pendingMsgId = entry.getKey();
             String[] h = entry.getValue();
             String op = h[0], action = h[1], staff = h[2];
             int roomColor = Integer.parseInt(h[3]);
 
+            // Op button: highlight + show "✓ Op#" — tap to acknowledge
             for (Button btn : locationButtons) {
-                if (btn.getText().toString().equals(op)) {
+                if (btn.getText().toString().equals(op) || btn.getText().toString().equals("✓ " + op)) {
                     setButtonAppearanceHighlighted(btn, roomColor);
-                    btn.setText("✓ " + op); // show ✓ OK on the Op button itself
-                    // Tap the Op button to acknowledge
+                    btn.setText("✓ " + op);
                     final String ackId = pendingMsgId;
                     btn.setOnClickListener(v -> {
                         acknowledgeCard(ackId);
                         broadcastMessage("ACK|" + ackId);
-                        // Restore original click behavior
-                        btn.setOnClickListener(bv ->
-                            selectButton(locationButtons, btn, b -> selectedLocation = b));
                     });
                 }
             }
-            for (Button btn : actionButtons) {
-                if (!action.isEmpty() && btn.getText().toString().equals(action))
-                    setButtonAppearanceHighlighted(btn, roomColor);
+
+            // Collect action conflicts
+            if (!action.isEmpty()) {
+                if (!actionConflicts.containsKey(action)) actionConflicts.put(action, new ArrayList<>());
+                if (!actionConflicts.get(action).contains(roomColor)) actionConflicts.get(action).add(roomColor);
             }
-            for (Button btn : staffButtons) {
-                if (!staff.isEmpty() && btn.getText().toString().equals(staff))
-                    setButtonAppearanceHighlighted(btn, roomColor);
+            // Collect staff conflicts
+            if (!staff.isEmpty()) {
+                if (!staffConflicts.containsKey(staff)) staffConflicts.put(staff, new ArrayList<>());
+                if (!staffConflicts.get(staff).contains(roomColor)) staffConflicts.get(staff).add(roomColor);
             }
         }
+
+        // Apply action highlights: single color = solid border; multiple = start flash
+        for (Map.Entry<String, List<Integer>> e : actionConflicts.entrySet()) {
+            String action = e.getKey();
+            List<Integer> colors = e.getValue();
+            for (Button btn : actionButtons) {
+                if (btn.getText().toString().equals(action)) {
+                    if (colors.size() == 1) {
+                        setButtonAppearanceHighlighted(btn, colors.get(0));
+                    } else {
+                        // Multiple rooms need same action — flash between their colors
+                        startActionFlash(btn, colors);
+                    }
+                }
+            }
+        }
+
+        // Apply staff highlights: same logic
+        for (Map.Entry<String, List<Integer>> e : staffConflicts.entrySet()) {
+            String staff = e.getKey();
+            List<Integer> colors = e.getValue();
+            for (Button btn : staffButtons) {
+                if (btn.getText().toString().equals(staff)) {
+                    if (colors.size() == 1) {
+                        setButtonAppearanceHighlighted(btn, colors.get(0));
+                    } else {
+                        startActionFlash(btn, colors);
+                    }
+                }
+            }
+        }
+    }
+
+    private void startActionFlash(Button btn, List<Integer> colors) {
+        // Flash button border between multiple room colors
+        actionFlashRunnable = new Runnable() {
+            @Override public void run() {
+                if (pendingHighlights.isEmpty()) return;
+                int color = colors.get(actionFlashIndex % colors.size());
+                actionFlashIndex++;
+                setButtonAppearanceHighlighted(btn, color);
+                handler.postDelayed(this, 600);
+            }
+        };
+        handler.post(actionFlashRunnable);
     }
 
     private void addLogMessage(String message, String msgId, String extra) {
