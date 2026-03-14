@@ -37,8 +37,21 @@ public class MainActivity extends Activity {
 
     // === CONFIGURATION ===
     // Staff (who)
+    // Staff split into sub-groups for layout
+    private static final String[] STAFF_DOCTORS = {
+        "Dr. Riad", "Dr. Zaku", "Amanda", "Assistant"
+    };
+    private static final String[] STAFF_HYGIENE = {
+        "Randi", "Pavlina", "Lindsay", "Hygiene"
+    };
+    private static final String[] STAFF_FRONT = {
+        "Laura", "Yousef", "Maribel", "Katelyn", "Amanda H", "Front"
+    };
+    // Combined for button tracking
     private static final String[] STAFF = {
-        "Dr. Riad", "Dr. Zaku", "Randi", "Pavlina", "Amanda", "Lindsay", "Laura", "Yousef", "Maribel", "Katelyn", "Amanda H", "Assistant"
+        "Dr. Riad", "Dr. Zaku", "Amanda", "Assistant",
+        "Randi", "Pavlina", "Lindsay", "Hygiene",
+        "Laura", "Yousef", "Maribel", "Katelyn", "Amanda H", "Front"
     };
 
     // Actions (what)
@@ -108,7 +121,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.1.9";
+    private static final String VERSION = "v1.2.0";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -158,13 +171,29 @@ public class MainActivity extends Activity {
         });
         root.addView(actionGrid);
 
-        // === Staff row ===
+        // === Staff — Doctors ===
         TextView staffLabel = makeLabel("STAFF");
         root.addView(staffLabel);
-        GridLayout staffGrid = makeGrid(STAFF, staffButtons, COLOR_STAFF, v -> {
+        GridLayout staffDocGrid = makeGrid(STAFF_DOCTORS, staffButtons, COLOR_STAFF, v -> {
             selectButton(staffButtons, (Button) v, b -> selectedStaff = b);
         });
-        root.addView(staffGrid);
+        root.addView(staffDocGrid);
+
+        // === Staff — Hygiene ===
+        TextView hygieneLabel = makeLabel("  ↳ HYGIENE");
+        root.addView(hygieneLabel);
+        GridLayout staffHygGrid = makeGrid(STAFF_HYGIENE, staffButtons, Color.parseColor("#00695C"), v -> {
+            selectButton(staffButtons, (Button) v, b -> selectedStaff = b);
+        });
+        root.addView(staffHygGrid);
+
+        // === Staff — Front ===
+        TextView frontLabel = makeLabel("  ↳ FRONT");
+        root.addView(frontLabel);
+        GridLayout staffFrontGrid = makeGrid(STAFF_FRONT, staffButtons, Color.parseColor("#4527A0"), v -> {
+            selectButton(staffButtons, (Button) v, b -> selectedStaff = b);
+        });
+        root.addView(staffFrontGrid);
 
         // === Bottom bar: Send only ===
         LinearLayout bottomBar = new LinearLayout(this);
