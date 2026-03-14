@@ -100,15 +100,11 @@ public class MainActivity extends Activity {
     // Pending button highlights: msgId -> [op, action, staff, roomColor]
     private final Map<String, String[]> pendingHighlights = new HashMap<>();
 
-    // Pending room colors for alternating flash (multiple unacked messages)
-    private final List<Integer> pendingRoomColors = new ArrayList<>();
-    private final Map<String, Integer> msgIdToRoomColor = new HashMap<>();
-    private int flashIndex = 0;
-    private Runnable flashRunnable;
-    private static final int FLASH_INTERVAL_MS = 800;
+    // msgId -> op button that shows ✓ OK overlay
+    private final Map<String, Button> pendingOpButtons = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v0.6.4";
+    private static final String VERSION = "v0.7.0";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -418,53 +414,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    // === Pending color flash ===
 
-    private void addPendingColor(String msgId, int roomColor) {
-        if (!pendingRoomColors.contains(roomColor)) {
-            pendingRoomColors.add(roomColor);
-        }
-        msgIdToRoomColor.put(msgId, roomColor);
-        startFlashing();
-    }
-
-    private void removePendingColor(String msgId) {
-        Integer color = msgIdToRoomColor.remove(msgId);
-        if (color != null && !msgIdToRoomColor.containsValue(color)) {
-            pendingRoomColors.remove(color);
-        }
-        if (pendingRoomColors.isEmpty()) {
-            stopFlashing();
-        }
-    }
-
-    private void startFlashing() {
-        if (flashRunnable != null) return; // already running
-        flashRunnable = new Runnable() {
-            @Override public void run() {
-                if (pendingRoomColors.isEmpty()) { stopFlashing(); return; }
-                int color = pendingRoomColors.get(flashIndex % pendingRoomColors.size());
-                flashIndex++;
-                // Tint the message scroll background to the current pending room color
-                int tinted = Color.argb(180,
-                    (int)(Color.red(color) * 0.3f),
-                    (int)(Color.green(color) * 0.3f),
-                    (int)(Color.blue(color) * 0.3f));
-                messageScroll.setBackgroundColor(tinted);
-                handler.postDelayed(this, FLASH_INTERVAL_MS);
-            }
-        };
-        handler.post(flashRunnable);
-    }
-
-    private void stopFlashing() {
-        if (flashRunnable != null) {
-            handler.removeCallbacks(flashRunnable);
-            flashRunnable = null;
-        }
-        flashIndex = 0;
-        messageScroll.setBackgroundColor(Color.parseColor("#0d1f3c")); // restore default
-    }
 
     // === Messaging ===
 
@@ -513,18 +463,27 @@ public class MainActivity extends Activity {
     }
 
     private void acknowledgeCard(String msgId) {
+        // Remove log card
         LinearLayout card = activeCards.get(msgId);
-        if (card == null) return;
-        messageLog.removeView(card);
+        if (card != null) messageLog.removeView(card);
         activeCards.remove(msgId);
         activeCardMsgViews.remove(msgId);
-        removePendingColor(msgId);
+        // Restore Op button text (remove ✓ OK overlay) and redraw
+        pendingOpButtons.remove(msgId);
+        // Clear highlight
         clearPendingHighlight(msgId);
     }
 
     private void applyPendingHighlight(String msgId, String op, String action, String staff) {
         int roomColor = ROOM_COLORS.containsKey(op) ? ROOM_COLORS.get(op) : Color.parseColor("#1E88E5");
         pendingHighlights.put(msgId, new String[]{op, action, staff, String.valueOf(roomColor)});
+        // Find and store the Op button for ✓ OK overlay
+        for (Button btn : locationButtons) {
+            if (btn.getText().toString().equals(op) || btn.getText().toString().equals("✓ " + op)) {
+                pendingOpButtons.put(msgId, btn);
+                break;
+            }
+        }
         redrawButtonHighlights();
     }
 
@@ -534,12 +493,16 @@ public class MainActivity extends Activity {
     }
 
     private void redrawButtonHighlights() {
-        // Reset all buttons to base color
+        // Reset all Op buttons to original label + base color
+        for (Button btn : locationButtons) {
+            String label = LOCATIONS[locationButtons.indexOf(btn)];
+            btn.setText(label);
+        }
         resetGroup(staffButtons);
         resetGroup(actionButtons);
         resetGroup(locationButtons);
 
-        // Re-apply local composing selection (what this tablet has selected but not yet sent)
+        // Re-apply local composing selection
         if (selectedLocation != null) {
             for (Button btn : locationButtons) {
                 if (btn.getText().toString().equals(selectedLocation))
@@ -559,14 +522,27 @@ public class MainActivity extends Activity {
             }
         }
 
-        // Apply all pending received highlights on top (network messages not yet ACKed)
-        for (String[] h : pendingHighlights.values()) {
+        // Apply all pending received highlights — Op button shows ✓ OK text
+        for (Map.Entry<String, String[]> entry : pendingHighlights.entrySet()) {
+            String pendingMsgId = entry.getKey();
+            String[] h = entry.getValue();
             String op = h[0], action = h[1], staff = h[2];
             int roomColor = Integer.parseInt(h[3]);
 
             for (Button btn : locationButtons) {
-                if (btn.getText().toString().equals(op))
+                if (btn.getText().toString().equals(op)) {
                     setButtonAppearanceHighlighted(btn, roomColor);
+                    btn.setText("✓ " + op); // show ✓ OK on the Op button itself
+                    // Tap the Op button to acknowledge
+                    final String ackId = pendingMsgId;
+                    btn.setOnClickListener(v -> {
+                        acknowledgeCard(ackId);
+                        broadcastMessage("ACK|" + ackId);
+                        // Restore original click behavior
+                        btn.setOnClickListener(bv ->
+                            selectButton(locationButtons, btn, b -> selectedLocation = b));
+                    });
+                }
             }
             for (Button btn : actionButtons) {
                 if (!action.isEmpty() && btn.getText().toString().equals(action))
@@ -583,98 +559,50 @@ public class MainActivity extends Activity {
         String time = new SimpleDateFormat("hh:mm a", Locale.US).format(new Date());
         boolean isSystem = message.equals("System");
 
-        // Determine card color from room (Op1–Op10) in message
-        int cardColor = Color.parseColor("#1A2A3A"); // default dark
-        for (java.util.Map.Entry<String, Integer> e : ROOM_COLORS.entrySet()) {
-            if (message.contains(e.getKey())) {
-                cardColor = e.getValue();
-                break;
-            }
+        // Determine row color from room
+        int rowColor = Color.parseColor("#1A2A3A");
+        for (Map.Entry<String, Integer> e : ROOM_COLORS.entrySet()) {
+            if (message.contains(e.getKey())) { rowColor = e.getValue(); break; }
         }
-        final int finalCardColor = cardColor;
+        final int finalRowColor = rowColor;
         final String finalMessage = message;
         final String finalTime = time;
         final String finalMsgId = msgId;
 
         handler.post(() -> {
-            // Keep last 30 messages
-            if (messageLog.getChildCount() > 30) {
+            if (messageLog.getChildCount() > 30)
                 messageLog.removeViewAt(messageLog.getChildCount() - 1);
-            }
 
-            // === Card container ===
-            LinearLayout card = new LinearLayout(this);
-            card.setOrientation(LinearLayout.VERTICAL);
-            LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+            // Simple colored row: time + message text
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            cardParams.setMargins(0, dp(4), 0, dp(4));
-            card.setLayoutParams(cardParams);
+            rowParams.setMargins(0, dp(2), 0, dp(2));
+            row.setLayoutParams(rowParams);
+            GradientDrawable rowBg = new GradientDrawable();
+            rowBg.setCornerRadius(dp(4));
+            rowBg.setColor(isSystem ? Color.parseColor("#1A2334") : finalRowColor);
+            row.setBackground(rowBg);
+            row.setPadding(dp(8), dp(6), dp(8), dp(6));
 
-            GradientDrawable cardBg = new GradientDrawable();
-            cardBg.setCornerRadius(dp(8));
-            cardBg.setColor(isSystem ? Color.parseColor("#1A2334") : finalCardColor);
-            card.setBackground(cardBg);
-            card.setPadding(dp(12), dp(10), dp(12), dp(10));
+            TextView tv = new TextView(this);
+            tv.setText(finalTime + "  " + finalMessage);
+            tv.setTextColor(Color.WHITE);
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            tv.setTypeface(isSystem ? Typeface.DEFAULT : Typeface.DEFAULT_BOLD);
+            LinearLayout.LayoutParams tvParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            tv.setLayoutParams(tvParams);
+            row.addView(tv);
 
-            // Register card for network ACK and start color flash
+            // Register for ACK (row removal)
             if (!isSystem && !finalMsgId.isEmpty()) {
-                activeCards.put(finalMsgId, card);
-                addPendingColor(finalMsgId, finalCardColor);
+                activeCards.put(finalMsgId, row);
             }
 
-            // === Top row: time label ===
-            TextView timeView = new TextView(this);
-            timeView.setText(finalTime);
-            timeView.setTextColor(Color.parseColor("#B0BEC5"));
-            timeView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
-            card.addView(timeView);
-
-            // === Middle row: message text (big) ===
-            TextView msgView = new TextView(this);
-            msgView.setText(finalMessage);
-            msgView.setTextColor(Color.WHITE);
-            msgView.setTextSize(TypedValue.COMPLEX_UNIT_SP, isSystem ? 13 : 17);
-            msgView.setTypeface(isSystem ? Typeface.DEFAULT : Typeface.DEFAULT_BOLD);
-            msgView.setPadding(0, dp(4), 0, dp(8));
-            card.addView(msgView);
-
-            // Register msgView for network ACK
-            if (!isSystem && !finalMsgId.isEmpty()) {
-                activeCardMsgViews.put(finalMsgId, msgView);
-            }
-
-            // === ✓ OK button only (non-system only) ===
-            if (!isSystem) {
-                LinearLayout btnRow = new LinearLayout(this);
-                btnRow.setOrientation(LinearLayout.HORIZONTAL);
-                btnRow.setGravity(Gravity.END);
-                btnRow.setLayoutParams(new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-                Button ackBtn = new Button(this);
-                ackBtn.setText("✓ OK");
-                ackBtn.setTextColor(Color.WHITE);
-                ackBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-                ackBtn.setAllCaps(false);
-                GradientDrawable ackBg = new GradientDrawable();
-                ackBg.setCornerRadius(dp(6));
-                ackBg.setColor(Color.parseColor("#1B5E20")); // dark green
-                ackBtn.setBackground(ackBg);
-                ackBtn.setPadding(dp(16), dp(6), dp(16), dp(6));
-                ackBtn.setLayoutParams(new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-                ackBtn.setOnClickListener(v -> {
-                    acknowledgeCard(finalMsgId);
-                    if (!finalMsgId.isEmpty()) {
-                        broadcastMessage("ACK|" + finalMsgId);
-                    }
-                });
-
-                btnRow.addView(ackBtn);
-                card.addView(btnRow);
-            }
-
-            messageLog.addView(card, 0); // newest on top
+            messageLog.addView(row, 0);
             messageScroll.post(() -> messageScroll.scrollTo(0, 0));
         });
     }
