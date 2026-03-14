@@ -27,8 +27,11 @@ import java.net.MulticastSocket;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+
 
 public class MainActivity extends Activity {
 
@@ -45,8 +48,26 @@ public class MainActivity extends Activity {
 
     // Locations (where)
     private static final String[] LOCATIONS = {
-        "Op1", "Op2", "Op3", "Op4", "Op5", "LN1", "LN2", "LN3", "LN4"
+        "Op1", "Op2", "Op3", "Op4", "Op5",
+        "Op6", "Op7", "Op8", "Op9", "Op10"
     };
+
+    // Room colors — inspired by real chair colors in the office
+    private static final java.util.Map<String, Integer> ROOM_COLORS = new java.util.LinkedHashMap<String, Integer>() {{
+        // Op1–Op4: orange chairs — warm amber/orange gradient
+        put("Op1",  Color.parseColor("#FFB300")); // Amber
+        put("Op2",  Color.parseColor("#FB8C00")); // Orange
+        put("Op3",  Color.parseColor("#F4511E")); // Deep Orange
+        put("Op4",  Color.parseColor("#BF360C")); // Burnt Orange
+        // Op5–Op8: black chairs — dark charcoal/slate gradient
+        put("Op5",  Color.parseColor("#455A64")); // Blue Grey
+        put("Op6",  Color.parseColor("#37474F")); // Darker Blue Grey
+        put("Op7",  Color.parseColor("#263238")); // Near Black
+        put("Op8",  Color.parseColor("#1C2B30")); // Almost Black
+        // Op9–Op10: Dr. Riad — cyan
+        put("Op9",  Color.parseColor("#00ACC1")); // Cyan
+        put("Op10", Color.parseColor("#00838F")); // Deep Cyan
+    }};
 
     // Multicast config
     private static final String MULTICAST_GROUP = "239.255.42.1";
@@ -64,14 +85,28 @@ public class MainActivity extends Activity {
     private LinearLayout messageLog;
     private ScrollView messageScroll;
     private Button sendButton;
-    private Button resetButton;
-    private Button sendAllButton;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private MulticastSocket receiveSocket;
     private volatile boolean listening = true;
 
+    // Track active message cards by ID for network ACK
+    private final Map<String, LinearLayout> activeCards = new HashMap<>();
+    private final Map<String, TextView> activeCardMsgViews = new HashMap<>();
+
+    // Current room color — drives all button highlights
+    private int currentRoomColor = Color.parseColor("#1E88E5"); // default blue
+
+    // Pending room colors for alternating flash (multiple unacked messages)
+    private final List<Integer> pendingRoomColors = new ArrayList<>();
+    private final Map<String, Integer> msgIdToRoomColor = new HashMap<>();
+    private int flashIndex = 0;
+    private Runnable flashRunnable;
+    private static final int FLASH_INTERVAL_MS = 800;
+
     // Colors
+    private static final String VERSION = "v0.5.0";
+
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
     private static final int COLOR_ACTION = Color.parseColor("#1976D2");
@@ -79,8 +114,6 @@ public class MainActivity extends Activity {
     private static final int COLOR_SELECTED = Color.parseColor("#C6D64A");
     private static final int COLOR_SELECTED_TEXT = Color.parseColor("#1a1a1a");
     private static final int COLOR_SEND = Color.parseColor("#42A5F5");
-    private static final int COLOR_SEND_ALL = Color.parseColor("#66BB6A");
-    private static final int COLOR_RESET = Color.parseColor("#EF5350");
     private static final int COLOR_MSG_BG = Color.parseColor("#0d1f3c");
 
     @Override
@@ -106,13 +139,13 @@ public class MainActivity extends Activity {
         messageScroll.addView(messageLog);
         root.addView(messageScroll);
 
-        // === Staff row ===
-        TextView staffLabel = makeLabel("STAFF");
-        root.addView(staffLabel);
-        GridLayout staffGrid = makeGrid(STAFF, staffButtons, COLOR_STAFF, v -> {
-            selectButton(staffButtons, (Button) v, b -> selectedStaff = b);
+        // === Op row (room — drives card color) ===
+        TextView locLabel = makeLabel("OP");
+        root.addView(locLabel);
+        GridLayout locGrid = makeRoomGrid(LOCATIONS, locationButtons, v -> {
+            selectButton(locationButtons, (Button) v, b -> selectedLocation = b);
         });
-        root.addView(staffGrid);
+        root.addView(locGrid);
 
         // === Action row ===
         TextView actionLabel = makeLabel("ACTION");
@@ -122,15 +155,15 @@ public class MainActivity extends Activity {
         });
         root.addView(actionGrid);
 
-        // === Location row ===
-        TextView locLabel = makeLabel("LOCATION");
-        root.addView(locLabel);
-        GridLayout locGrid = makeGrid(LOCATIONS, locationButtons, COLOR_LOCATION, v -> {
-            selectButton(locationButtons, (Button) v, b -> selectedLocation = b);
+        // === Staff row ===
+        TextView staffLabel = makeLabel("STAFF");
+        root.addView(staffLabel);
+        GridLayout staffGrid = makeGrid(STAFF, staffButtons, COLOR_STAFF, v -> {
+            selectButton(staffButtons, (Button) v, b -> selectedStaff = b);
         });
-        root.addView(locGrid);
+        root.addView(staffGrid);
 
-        // === Bottom bar: Reset | Send | Send All ===
+        // === Bottom bar: Send only ===
         LinearLayout bottomBar = new LinearLayout(this);
         bottomBar.setOrientation(LinearLayout.HORIZONTAL);
         bottomBar.setGravity(Gravity.CENTER);
@@ -139,16 +172,27 @@ public class MainActivity extends Activity {
         barParams.topMargin = dp(12);
         bottomBar.setLayoutParams(barParams);
 
-        resetButton = makeControlButton("Reset", COLOR_RESET, v -> resetSelection());
-        sendButton = makeControlButton("Send", COLOR_SEND, v -> sendMessage(false));
-        sendAllButton = makeControlButton("Send All", COLOR_SEND_ALL, v -> sendMessage(true));
-
-        bottomBar.addView(resetButton);
+        sendButton = makeControlButton("Send", COLOR_SEND, v -> sendMessage());
         bottomBar.addView(sendButton);
-        bottomBar.addView(sendAllButton);
         root.addView(bottomBar);
 
-        setContentView(root);
+        // === Version label (bottom-right) ===
+        TextView versionLabel = new TextView(this);
+        versionLabel.setText(VERSION);
+        versionLabel.setTextColor(Color.parseColor("#37474F"));
+        versionLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+        versionLabel.setGravity(Gravity.END);
+        LinearLayout.LayoutParams vParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        vParams.topMargin = dp(4);
+        versionLabel.setLayoutParams(vParams);
+        root.addView(versionLabel);
+
+        // Wrap root in ScrollView so nothing gets clipped on small screens
+        ScrollView rootScroll = new ScrollView(this);
+        rootScroll.setBackgroundColor(COLOR_BG);
+        rootScroll.addView(root);
+        setContentView(rootScroll);
 
         // Start listening for multicast messages
         startListening();
@@ -210,6 +254,45 @@ public class MainActivity extends Activity {
         return grid;
     }
 
+    private GridLayout makeRoomGrid(String[] labels, List<Button> buttonList,
+                                     View.OnClickListener listener) {
+        GridLayout grid = new GridLayout(this);
+        int cols = Math.min(labels.length, 5); // 5 per row for 10 rooms
+        grid.setColumnCount(cols);
+        grid.setUseDefaultMargins(false);
+
+        for (String label : labels) {
+            int roomColor = ROOM_COLORS.containsKey(label)
+                ? ROOM_COLORS.get(label)
+                : Color.parseColor("#1E88E5");
+
+            Button btn = new Button(this);
+            btn.setText(label);
+            btn.setTextColor(Color.WHITE);
+            btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            btn.setTypeface(Typeface.DEFAULT_BOLD);
+            btn.setAllCaps(false);
+
+            GradientDrawable bg = new GradientDrawable();
+            bg.setCornerRadius(dp(6));
+            bg.setColor(roomColor);
+            btn.setBackground(bg);
+            btn.setTag(roomColor);
+            btn.setPadding(dp(12), dp(10), dp(12), dp(10));
+
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.setMargins(dp(3), dp(3), dp(3), dp(3));
+            params.width = 0;
+            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1, 1f);
+            btn.setLayoutParams(params);
+
+            btn.setOnClickListener(listener);
+            buttonList.add(btn);
+            grid.addView(btn);
+        }
+        return grid;
+    }
+
     private Button makeControlButton(String text, int color, View.OnClickListener listener) {
         Button btn = new Button(this);
         btn.setText(text);
@@ -237,14 +320,39 @@ public class MainActivity extends Activity {
 
     private void selectButton(List<Button> group, Button selected, StringSetter setter) {
         String selectedText = selected.getText().toString();
+
+        // If this is a room button, update the global room color
+        if (ROOM_COLORS.containsKey(selectedText)) {
+            currentRoomColor = ROOM_COLORS.get(selectedText);
+            // Refresh all already-selected action/staff buttons to new room color
+            refreshNonRoomHighlights();
+        }
+
         for (int i = 0; i < group.size(); i++) {
             Button btn = group.get(i);
             int origColor = (int) btn.getTag();
             boolean isSelected = (btn == selected);
-            setButtonAppearance(btn, isSelected ? COLOR_SELECTED : origColor,
-                                isSelected ? COLOR_SELECTED_TEXT : Color.WHITE);
+            if (isSelected) {
+                setButtonAppearanceHighlighted(btn, currentRoomColor);
+            } else {
+                setButtonAppearance(btn, origColor, Color.WHITE);
+            }
         }
         setter.set(selectedText);
+    }
+
+    private void refreshNonRoomHighlights() {
+        // Re-highlight selected action and staff buttons in the new room color
+        for (Button btn : actionButtons) {
+            if (btn.getText().toString().equals(selectedAction)) {
+                setButtonAppearanceHighlighted(btn, currentRoomColor);
+            }
+        }
+        for (Button btn : staffButtons) {
+            if (btn.getText().toString().equals(selectedStaff)) {
+                setButtonAppearanceHighlighted(btn, currentRoomColor);
+            }
+        }
     }
 
     private void setButtonAppearance(Button btn, int bgColor, int textColor) {
@@ -255,13 +363,34 @@ public class MainActivity extends Activity {
         btn.setTextColor(textColor);
     }
 
+    private void setButtonAppearanceHighlighted(Button btn, int roomColor) {
+        // Brighten the room color for selected state + white stroke border
+        int r = Math.min(255, (int)(Color.red(roomColor) * 1.5f + 60));
+        int g = Math.min(255, (int)(Color.green(roomColor) * 1.5f + 60));
+        int b = Math.min(255, (int)(Color.blue(roomColor) * 1.5f + 60));
+        int brightColor = Color.rgb(r, g, b);
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(6));
+        bg.setColor(brightColor);
+        bg.setStroke(dp(3), Color.WHITE);
+        btn.setBackground(bg);
+        btn.setTextColor(Color.WHITE);
+    }
+
     private void resetSelection() {
         selectedStaff = null;
         selectedAction = null;
         selectedLocation = null;
+        currentRoomColor = Color.parseColor("#1E88E5"); // reset to default
         resetGroup(staffButtons);
         resetGroup(actionButtons);
         resetGroup(locationButtons);
+        // Clear message log
+        runOnUiThread(() -> {
+            messageLog.removeAllViews();
+            addLogMessage("System", "Ready", "");
+        });
     }
 
     private void resetGroup(List<Button> group) {
@@ -271,56 +400,187 @@ public class MainActivity extends Activity {
         }
     }
 
+    // === Pending color flash ===
+
+    private void addPendingColor(String msgId, int roomColor) {
+        if (!pendingRoomColors.contains(roomColor)) {
+            pendingRoomColors.add(roomColor);
+        }
+        msgIdToRoomColor.put(msgId, roomColor);
+        startFlashing();
+    }
+
+    private void removePendingColor(String msgId) {
+        Integer color = msgIdToRoomColor.remove(msgId);
+        if (color != null && !msgIdToRoomColor.containsValue(color)) {
+            pendingRoomColors.remove(color);
+        }
+        if (pendingRoomColors.isEmpty()) {
+            stopFlashing();
+        }
+    }
+
+    private void startFlashing() {
+        if (flashRunnable != null) return; // already running
+        flashRunnable = new Runnable() {
+            @Override public void run() {
+                if (pendingRoomColors.isEmpty()) { stopFlashing(); return; }
+                int color = pendingRoomColors.get(flashIndex % pendingRoomColors.size());
+                flashIndex++;
+                // Tint the message scroll background to the current pending room color
+                int tinted = Color.argb(180,
+                    (int)(Color.red(color) * 0.3f),
+                    (int)(Color.green(color) * 0.3f),
+                    (int)(Color.blue(color) * 0.3f));
+                messageScroll.setBackgroundColor(tinted);
+                handler.postDelayed(this, FLASH_INTERVAL_MS);
+            }
+        };
+        handler.post(flashRunnable);
+    }
+
+    private void stopFlashing() {
+        if (flashRunnable != null) {
+            handler.removeCallbacks(flashRunnable);
+            flashRunnable = null;
+        }
+        flashIndex = 0;
+        messageScroll.setBackgroundColor(Color.parseColor("#0d1f3c")); // restore default
+    }
+
     // === Messaging ===
 
-    private void sendMessage(boolean sendToAll) {
+    private void sendMessage() {
         if (selectedStaff == null && selectedAction == null && selectedLocation == null) {
             Toast.makeText(this, "Select at least one option", Toast.LENGTH_SHORT).show();
             return;
         }
 
         StringBuilder msg = new StringBuilder();
-        if (selectedStaff != null) msg.append(selectedStaff);
+        if (selectedLocation != null) msg.append(selectedLocation);
         if (selectedAction != null) {
             if (msg.length() > 0) msg.append(" — ");
             msg.append(selectedAction);
         }
-        if (selectedLocation != null) {
+        if (selectedStaff != null) {
             if (msg.length() > 0) msg.append(" — ");
-            msg.append(selectedLocation);
+            msg.append(selectedStaff);
         }
 
-        String fullMsg = msg.toString();
-        String target = sendToAll ? "ALL" : "GROUP";
-
+        // Use timestamp as message ID — same value seen by all tablets from the broadcast
+        String msgId = String.valueOf(System.currentTimeMillis());
         // Don't show locally — the multicast loopback will deliver it back
-        // This prevents duplicate messages in the log
-        broadcastMessage(fullMsg + "|" + target);
+        broadcastMessage("MSG|" + msgId + "|" + msg.toString());
 
-        // Reset after send
-        resetSelection();
+        // Keep selection highlighted after send
     }
 
-    private void addLogMessage(String message, String target, String extra) {
-        String time = new SimpleDateFormat("hh:mm a", Locale.US).format(new Date());
+    private void acknowledgeCard(String msgId) {
+        LinearLayout card = activeCards.get(msgId);
+        if (card == null) return;
+        messageLog.removeView(card);
+        activeCards.remove(msgId);
+        activeCardMsgViews.remove(msgId);
+        removePendingColor(msgId);
+    }
 
-        TextView tv = new TextView(this);
-        String display = time + "  " + message;
-        if (target != null && !target.isEmpty() && !target.equals("")) {
-            display += "  [" + target + "]";
+    private void addLogMessage(String message, String msgId, String extra) {
+        String time = new SimpleDateFormat("hh:mm a", Locale.US).format(new Date());
+        boolean isSystem = message.equals("System");
+
+        // Determine card color from room (Op1–Op10) in message
+        int cardColor = Color.parseColor("#1A2A3A"); // default dark
+        for (java.util.Map.Entry<String, Integer> e : ROOM_COLORS.entrySet()) {
+            if (message.contains(e.getKey())) {
+                cardColor = e.getValue();
+                break;
+            }
         }
-        tv.setText(display);
-        tv.setTextColor(Color.WHITE);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        tv.setPadding(0, dp(2), 0, dp(2));
+        final int finalCardColor = cardColor;
+        final String finalMessage = message;
+        final String finalTime = time;
+        final String finalMsgId = msgId;
 
         handler.post(() -> {
-            // Keep last 50 messages
-            if (messageLog.getChildCount() > 50) {
-                messageLog.removeViewAt(0);
+            // Keep last 30 messages
+            if (messageLog.getChildCount() > 30) {
+                messageLog.removeViewAt(messageLog.getChildCount() - 1);
             }
-            messageLog.addView(tv, 0); // newest on top
-            messageScroll.fullScroll(View.FOCUS_UP);
+
+            // === Card container ===
+            LinearLayout card = new LinearLayout(this);
+            card.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            cardParams.setMargins(0, dp(4), 0, dp(4));
+            card.setLayoutParams(cardParams);
+
+            GradientDrawable cardBg = new GradientDrawable();
+            cardBg.setCornerRadius(dp(8));
+            cardBg.setColor(isSystem ? Color.parseColor("#1A2334") : finalCardColor);
+            card.setBackground(cardBg);
+            card.setPadding(dp(12), dp(10), dp(12), dp(10));
+
+            // Register card for network ACK and start color flash
+            if (!isSystem && !finalMsgId.isEmpty()) {
+                activeCards.put(finalMsgId, card);
+                addPendingColor(finalMsgId, finalCardColor);
+            }
+
+            // === Top row: time label ===
+            TextView timeView = new TextView(this);
+            timeView.setText(finalTime);
+            timeView.setTextColor(Color.parseColor("#B0BEC5"));
+            timeView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            card.addView(timeView);
+
+            // === Middle row: message text (big) ===
+            TextView msgView = new TextView(this);
+            msgView.setText(finalMessage);
+            msgView.setTextColor(Color.WHITE);
+            msgView.setTextSize(TypedValue.COMPLEX_UNIT_SP, isSystem ? 13 : 17);
+            msgView.setTypeface(isSystem ? Typeface.DEFAULT : Typeface.DEFAULT_BOLD);
+            msgView.setPadding(0, dp(4), 0, dp(8));
+            card.addView(msgView);
+
+            // Register msgView for network ACK
+            if (!isSystem && !finalMsgId.isEmpty()) {
+                activeCardMsgViews.put(finalMsgId, msgView);
+            }
+
+            // === ✓ OK button only (non-system only) ===
+            if (!isSystem) {
+                LinearLayout btnRow = new LinearLayout(this);
+                btnRow.setOrientation(LinearLayout.HORIZONTAL);
+                btnRow.setGravity(Gravity.END);
+                btnRow.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+                Button ackBtn = new Button(this);
+                ackBtn.setText("✓ OK");
+                ackBtn.setTextColor(Color.WHITE);
+                ackBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+                ackBtn.setAllCaps(false);
+                GradientDrawable ackBg = new GradientDrawable();
+                ackBg.setCornerRadius(dp(6));
+                ackBg.setColor(Color.parseColor("#1B5E20")); // dark green
+                ackBtn.setBackground(ackBg);
+                ackBtn.setPadding(dp(16), dp(6), dp(16), dp(6));
+                ackBtn.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+                ackBtn.setOnClickListener(v -> {
+                    acknowledgeCard(finalMsgId);
+                    if (!finalMsgId.isEmpty()) {
+                        broadcastMessage("ACK|" + finalMsgId);
+                    }
+                });
+
+                btnRow.addView(ackBtn);
+                card.addView(btnRow);
+            }
+
+            messageLog.addView(card, 0); // newest on top
+            messageScroll.post(() -> messageScroll.scrollTo(0, 0));
         });
     }
 
@@ -356,16 +616,25 @@ public class MainActivity extends Activity {
                     receiveSocket.receive(packet);
                     String received = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
 
-                    // Parse: "message|target"
-                    String[] parts = received.split("\\|", 2);
-                    String message = parts[0];
-                    String target = parts.length > 1 ? parts[1] : "";
-
-                    // Play buzzer
-                    playBuzzer();
-
-                    // Add to log on UI thread
-                    handler.post(() -> addLogMessage(message, target, ""));
+                    if (received.startsWith("ACK|")) {
+                        // Another tablet acknowledged — dim that card here too
+                        String ackId = received.substring(4);
+                        handler.post(() -> acknowledgeCard(ackId));
+                    } else {
+                        // Parse: "MSG|id|message text"
+                        String msgId = "";
+                        String message = received;
+                        if (received.startsWith("MSG|")) {
+                            String[] parts = received.split("\\|", 3);
+                            msgId = parts.length > 1 ? parts[1] : "";
+                            message = parts.length > 2 ? parts[2] : received;
+                        }
+                        // Play buzzer
+                        playBuzzer();
+                        final String finalMsgId = msgId;
+                        final String finalMsg = message;
+                        handler.post(() -> addLogMessage(finalMsg, finalMsgId, ""));
+                    }
                 }
             } catch (Exception e) {
                 if (listening) {
@@ -378,10 +647,39 @@ public class MainActivity extends Activity {
     }
 
     private void playBuzzer() {
+        // Max volume on ALARM stream (bypasses silent/notification volume)
         try {
-            ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100);
-            tg.startTone(ToneGenerator.TONE_PROP_BEEP, 300);
-            handler.postDelayed(tg::release, 500);
+            AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+            if (am != null) {
+                am.setStreamVolume(AudioManager.STREAM_ALARM,
+                    am.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0);
+            }
+            // Three sharp beeps
+            ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
+            tg.startTone(ToneGenerator.TONE_PROP_BEEP, 200);
+            handler.postDelayed(() -> tg.startTone(ToneGenerator.TONE_PROP_BEEP, 200), 300);
+            handler.postDelayed(() -> tg.startTone(ToneGenerator.TONE_PROP_BEEP, 400), 600);
+            handler.postDelayed(tg::release, 1200);
+        } catch (Exception ignored) {}
+
+        // Vibration pattern: short-short-long
+        try {
+            android.os.Vibrator v = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
+            if (v != null && v.hasVibrator()) {
+                long[] pattern = {0, 150, 100, 150, 100, 400};
+                v.vibrate(pattern, -1);
+            }
+        } catch (Exception ignored) {}
+
+        // Wake screen
+        try {
+            android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+            if (pm != null) {
+                android.os.PowerManager.WakeLock wl = pm.newWakeLock(
+                    android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK |
+                    android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP, "OakBuzzer:alert");
+                wl.acquire(5000);
+            }
         } catch (Exception ignored) {}
     }
 
