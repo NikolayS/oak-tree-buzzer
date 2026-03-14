@@ -78,6 +78,9 @@ public class MainActivity extends Activity {
     private final List<Button> staffButtons = new ArrayList<>();
     private final List<Button> actionButtons = new ArrayList<>();
     private final List<Button> locationButtons = new ArrayList<>();
+    // Parallel list: base (idle) color for each location button — always COLOR_LOCATION (blue)
+    // Room color is stored in btn.getTag() for pending-highlight use only
+    private final List<Integer> locationBaseColors = new ArrayList<>();
 
     private LinearLayout messageLog;
     private ScrollView messageScroll;
@@ -308,6 +311,7 @@ public class MainActivity extends Activity {
 
             btn.setOnClickListener(listener);
             buttonList.add(btn);
+            locationBaseColors.add(COLOR_LOCATION); // base color is always blue
             grid.addView(btn);
         }
         return grid;
@@ -339,39 +343,42 @@ public class MainActivity extends Activity {
     interface StringSetter { void set(String value); }
 
     private void selectButton(List<Button> group, Button selected, StringSetter setter) {
-        String selectedText = selected.getText().toString();
+        boolean isOpGroup = (group == locationButtons);
 
-        // Determine if this is the location (Op) group by checking if it's the same list object
-        boolean groupIsOpButtons = (group == locationButtons);
-
-        // If an Op button, update room color tracker (use tag which stores room color)
-        if (groupIsOpButtons) {
+        // If Op group, update room color from the button's tag (room color stored there)
+        if (isOpGroup) {
             currentRoomColor = (int) selected.getTag();
         }
 
         for (int i = 0; i < group.size(); i++) {
             Button btn = group.get(i);
-            // Op buttons store ROOM color in tag; their idle base color is always blue
-            int origColor = groupIsOpButtons ? COLOR_LOCATION : (int) btn.getTag();
             boolean isSelected = (btn == selected);
-            if (isSelected) {
-                if (groupIsOpButtons) {
-                    // Op button: fill with its room color when selected
+
+            if (isOpGroup) {
+                // Location buttons: base color is always blue (never read from tag here)
+                if (isSelected) {
+                    // Highlight selected op with its own room color
                     setButtonAppearanceHighlighted(btn, currentRoomColor);
                 } else {
-                    // Action/Staff: keep original color, add white outline
+                    // All other op buttons: plain blue
+                    setButtonAppearance(btn, COLOR_LOCATION, Color.WHITE);
+                }
+            } else {
+                // Action / Staff buttons: tag holds their original color
+                int origColor = (int) btn.getTag();
+                if (isSelected) {
                     GradientDrawable bg = new GradientDrawable();
                     bg.setCornerRadius(dp(6));
                     bg.setColor(origColor);
                     bg.setStroke(dp(3), Color.argb(180, 255, 255, 255));
                     btn.setBackground(bg);
                     btn.setTextColor(Color.WHITE);
+                } else {
+                    setButtonAppearance(btn, origColor, Color.WHITE);
                 }
-            } else {
-                setButtonAppearance(btn, origColor, Color.WHITE);
             }
         }
-        setter.set(selectedText);
+        setter.set(selected.getText().toString());
     }
 
     private void setButtonAppearance(Button btn, int bgColor, int textColor) {
@@ -413,20 +420,7 @@ public class MainActivity extends Activity {
         // Reset all buttons back to blue, restore Op labels and listeners
         resetGroup(staffButtons);
         resetGroup(actionButtons);
-        for (int i = 0; i < locationButtons.size() && i < LOCATIONS.length; i++) {
-            Button btn = locationButtons.get(i);
-            btn.setText(LOCATIONS[i]);
-            // Reset Op button to plain blue (room color only activates on pending)
-            GradientDrawable bg = new GradientDrawable();
-            bg.setCornerRadius(dp(6));
-            bg.setColor(COLOR_LOCATION); // plain blue
-            btn.setBackground(bg);
-            btn.setTextColor(Color.WHITE);
-            btn.setTypeface(Typeface.DEFAULT_BOLD);
-            final int idx = i;
-            btn.setOnClickListener(v ->
-                selectButton(locationButtons, btn, b -> selectedLocation = b));
-        }
+        resetLocationButtons();
     }
 
     private void resetSelection() {
@@ -436,7 +430,7 @@ public class MainActivity extends Activity {
         currentRoomColor = Color.parseColor("#1E88E5"); // reset to default
         resetGroup(staffButtons);
         resetGroup(actionButtons);
-        resetGroup(locationButtons, true);
+        resetLocationButtons();
         // Re-apply any still-pending network highlights after reset
         redrawButtonHighlights();
         // Clear message log
@@ -446,16 +440,22 @@ public class MainActivity extends Activity {
         });
     }
 
+    /** Reset Action or Staff button group to their original tag colors. */
     private void resetGroup(List<Button> group) {
-        resetGroup(group, false);
+        for (Button btn : group) {
+            setButtonAppearance(btn, (int) btn.getTag(), Color.WHITE);
+        }
     }
 
-    private void resetGroup(List<Button> group, boolean isLocationGroup) {
-        for (Button btn : group) {
-            // Location buttons store their ROOM color in the tag, but the
-            // base (idle) appearance is always plain blue (COLOR_LOCATION).
-            int baseColor = isLocationGroup ? COLOR_LOCATION : (int) btn.getTag();
-            setButtonAppearance(btn, baseColor, Color.WHITE);
+    /** Reset Op/location buttons to plain blue — never reads from tag. */
+    private void resetLocationButtons() {
+        for (int i = 0; i < locationButtons.size() && i < LOCATIONS.length; i++) {
+            Button btn = locationButtons.get(i);
+            btn.setText(LOCATIONS[i]);
+            setButtonAppearance(btn, COLOR_LOCATION, Color.WHITE);
+            final int idx = i;
+            btn.setOnClickListener(v ->
+                selectButton(locationButtons, locationButtons.get(idx), b -> selectedLocation = b));
         }
     }
 
@@ -543,13 +543,7 @@ public class MainActivity extends Activity {
         // Reset all buttons to base color and original labels
         resetGroup(staffButtons);
         resetGroup(actionButtons);
-        resetGroup(locationButtons, true);
-        for (int i = 0; i < locationButtons.size() && i < LOCATIONS.length; i++) {
-            locationButtons.get(i).setText(LOCATIONS[i]);
-            final int idx = i;
-            locationButtons.get(i).setOnClickListener(v ->
-                selectButton(locationButtons, locationButtons.get(idx), b -> selectedLocation = b));
-        }
+        resetLocationButtons();
 
         if (pendingHighlights.isEmpty()) return;
 
