@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private int actionFlashIndex = 0;
 
     // Colors
-    private static final String VERSION = "v0.8.6";
+    private static final String VERSION = "v0.8.7";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -326,38 +326,29 @@ public class MainActivity extends Activity {
     private void selectButton(List<Button> group, Button selected, StringSetter setter) {
         String selectedText = selected.getText().toString();
 
-        // If this is a room button, update the global room color
+        // Update room color tracker if op selected
         if (ROOM_COLORS.containsKey(selectedText)) {
             currentRoomColor = ROOM_COLORS.get(selectedText);
-            // Refresh all already-selected action/staff buttons to new room color
-            refreshNonRoomHighlights();
         }
 
+        // Keep all buttons their original color — just mark selection with faint white outline only
         for (int i = 0; i < group.size(); i++) {
             Button btn = group.get(i);
             int origColor = (int) btn.getTag();
             boolean isSelected = (btn == selected);
             if (isSelected) {
-                setButtonAppearanceHighlighted(btn, currentRoomColor);
+                // Original color + faint white outline to show it's selected
+                GradientDrawable bg = new GradientDrawable();
+                bg.setCornerRadius(dp(6));
+                bg.setColor(origColor);
+                bg.setStroke(dp(3), Color.argb(180, 255, 255, 255));
+                btn.setBackground(bg);
+                btn.setTextColor(Color.WHITE);
             } else {
                 setButtonAppearance(btn, origColor, Color.WHITE);
             }
         }
         setter.set(selectedText);
-    }
-
-    private void refreshNonRoomHighlights() {
-        // Re-highlight selected action and staff buttons in the new room color
-        for (Button btn : actionButtons) {
-            if (btn.getText().toString().equals(selectedAction)) {
-                setButtonAppearanceHighlighted(btn, currentRoomColor);
-            }
-        }
-        for (Button btn : staffButtons) {
-            if (btn.getText().toString().equals(selectedStaff)) {
-                setButtonAppearanceHighlighted(btn, currentRoomColor);
-            }
-        }
     }
 
     private void setButtonAppearance(Button btn, int bgColor, int textColor) {
@@ -527,26 +518,6 @@ public class MainActivity extends Activity {
             final int idx = i;
             locationButtons.get(i).setOnClickListener(v ->
                 selectButton(locationButtons, locationButtons.get(idx), b -> selectedLocation = b));
-        }
-
-        // Re-apply local composing selection (this tablet, not yet sent)
-        if (selectedLocation != null) {
-            for (Button btn : locationButtons) {
-                if (btn.getText().toString().equals(selectedLocation))
-                    setButtonAppearanceHighlighted(btn, currentRoomColor);
-            }
-        }
-        if (selectedAction != null) {
-            for (Button btn : actionButtons) {
-                if (btn.getText().toString().equals(selectedAction))
-                    setButtonAppearanceHighlighted(btn, currentRoomColor);
-            }
-        }
-        if (selectedStaff != null) {
-            for (Button btn : staffButtons) {
-                if (btn.getText().toString().equals(selectedStaff))
-                    setButtonAppearanceHighlighted(btn, currentRoomColor);
-            }
         }
 
         if (pendingHighlights.isEmpty()) return;
