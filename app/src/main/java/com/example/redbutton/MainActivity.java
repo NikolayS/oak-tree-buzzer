@@ -341,23 +341,25 @@ public class MainActivity extends Activity {
     private void selectButton(List<Button> group, Button selected, StringSetter setter) {
         String selectedText = selected.getText().toString();
 
-        // If an Op button, update room color tracker
-        if (ROOM_COLORS.containsKey(selectedText)) {
-            currentRoomColor = (int) selected.getTag(); // room color stored in tag
+        // Determine if this is the location (Op) group by checking if it's the same list object
+        boolean groupIsOpButtons = (group == locationButtons);
+
+        // If an Op button, update room color tracker (use tag which stores room color)
+        if (groupIsOpButtons) {
+            currentRoomColor = (int) selected.getTag();
         }
 
-        boolean groupIsOpButtons = ROOM_COLORS.containsKey(selectedText);
         for (int i = 0; i < group.size(); i++) {
             Button btn = group.get(i);
-            // Op buttons store their ROOM color in the tag; base idle color is always blue
+            // Op buttons store ROOM color in tag; their idle base color is always blue
             int origColor = groupIsOpButtons ? COLOR_LOCATION : (int) btn.getTag();
             boolean isSelected = (btn == selected);
             if (isSelected) {
                 if (groupIsOpButtons) {
-                    // Op button: show its room color when selected
+                    // Op button: fill with its room color when selected
                     setButtonAppearanceHighlighted(btn, currentRoomColor);
                 } else {
-                    // Action/Staff: keep blue, faint white outline only
+                    // Action/Staff: keep original color, add white outline
                     GradientDrawable bg = new GradientDrawable();
                     bg.setCornerRadius(dp(6));
                     bg.setColor(origColor);
