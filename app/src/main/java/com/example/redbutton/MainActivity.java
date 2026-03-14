@@ -20,6 +20,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import android.media.MediaPlayer;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -122,7 +123,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.2.3";
+    private static final String VERSION = "v1.2.4";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -802,62 +803,56 @@ public class MainActivity extends Activity {
 
         vibrateAndWake();
 
-        // Soft smooth tones using SUP (supervisory) tones — gentle, not harsh
         switch (staff == null ? "" : staff) {
             case "Dr. Riad":
-                // 1 long soft tone
-                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0}, new int[]{900});
-                break;
-            case "Dr. Zaku":
-                // 2 medium soft tones
-                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 500}, new int[]{350, 350});
+                // 💧 Water drop
+                playSound(R.raw.sound_water_drop);
                 break;
             case "Randi":
-                // 3 short soft tones
-                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 350, 700}, new int[]{250, 250, 250});
-                break;
             case "Pavlina":
-                // 2 tones — short then long
-                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 300}, new int[]{200, 500});
+            case "Lindsay":
+            case "Hygiene":
+                // 🐦 Bird chirp
+                playSound(R.raw.sound_bird_chirp);
+                break;
+            case "Dr. Zaku":
+                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 500}, new int[]{350, 350});
                 break;
             case "Amanda":
-                // 1 short + 1 medium
                 playPattern(ToneGenerator.TONE_SUP_CONGESTION, new int[]{0, 350}, new int[]{250, 400});
                 break;
-            case "Lindsay":
-                // 3 tones with longer gaps
-                playPattern(ToneGenerator.TONE_SUP_CONGESTION, new int[]{0, 400, 800}, new int[]{280, 280, 280});
-                break;
             case "Laura":
-                // 2 short quick tones
                 playPattern(ToneGenerator.TONE_SUP_RADIO_ACK, new int[]{0, 350}, new int[]{280, 280});
                 break;
             case "Yousef":
-                // 1 long low gentle tone
                 playPattern(ToneGenerator.TONE_SUP_RADIO_NOTAVAIL, new int[]{0}, new int[]{900});
                 break;
             case "Maribel":
-                // 4 short gentle tones
                 playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 280, 560, 840}, new int[]{200, 200, 200, 200});
                 break;
             case "Katelyn":
-                // 2 long gentle tones
                 playPattern(ToneGenerator.TONE_SUP_CONGESTION, new int[]{0, 550}, new int[]{400, 400});
                 break;
             case "Amanda H":
-                // 3 tones — long short long
                 playPattern(ToneGenerator.TONE_SUP_RADIO_ACK, new int[]{0, 500, 800}, new int[]{400, 200, 400});
                 break;
             case "Assistant":
-            case "Hygiene":
             case "Front":
-                // 3 soft attention tones
+            default:
                 playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 320, 640}, new int[]{250, 250, 250});
                 break;
-            default:
-                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 350}, new int[]{300, 300});
-                break;
         }
+    }
+
+    private void playSound(int resId) {
+        try {
+            MediaPlayer mp = MediaPlayer.create(this, resId);
+            if (mp != null) {
+                mp.setVolume(1.0f, 1.0f);
+                mp.start();
+                mp.setOnCompletionListener(MediaPlayer::release);
+            }
+        } catch (Exception ignored) {}
     }
 
     private void vibrateAndWake() {
