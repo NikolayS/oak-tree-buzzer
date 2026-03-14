@@ -43,7 +43,7 @@ public class MainActivity extends Activity {
 
     // Actions (what)
     private static final String[] ACTIONS = {
-        "Pt. Ready", "Pt. Waiting", "Exam", "Px. Chart", "Tx", "Phone", "Help", "Msg"
+        "Pt. Ready", "Pt. Waiting", "Exam", "Px. Chart", "Tx", "Asst. Needed", "Msg"
     };
 
     // Locations (where)
@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.1.2";
+    private static final String VERSION = "v1.1.3";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
