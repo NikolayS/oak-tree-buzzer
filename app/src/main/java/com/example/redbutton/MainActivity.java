@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v0.9.0";
+    private static final String VERSION = "v0.9.1";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -545,7 +545,9 @@ public class MainActivity extends Activity {
             String pendingMsgId = entry.getKey();
             String[] h = entry.getValue();
             String op = h[0], action = h[1], staff = h[2];
-            int roomColor = Integer.parseInt(h[3]);
+            int roomColor;
+            try { roomColor = Integer.parseInt(h[3]); }
+            catch (NumberFormatException e) { roomColor = Color.parseColor(h[3]); }
 
             // Op button: highlight + show "✓ Op#" — tap to acknowledge
             for (Button btn : locationButtons) {
@@ -570,12 +572,14 @@ public class MainActivity extends Activity {
             // Collect action conflicts
             if (!action.isEmpty()) {
                 if (!actionConflicts.containsKey(action)) actionConflicts.put(action, new ArrayList<>());
-                if (!actionConflicts.get(action).contains(roomColor)) actionConflicts.get(action).add(roomColor);
+                Integer rc = roomColor;
+                if (!actionConflicts.get(action).contains(rc)) actionConflicts.get(action).add(rc);
             }
             // Collect staff conflicts
             if (!staff.isEmpty()) {
                 if (!staffConflicts.containsKey(staff)) staffConflicts.put(staff, new ArrayList<>());
-                if (!staffConflicts.get(staff).contains(roomColor)) staffConflicts.get(staff).add(roomColor);
+                Integer rc = roomColor;
+                if (!staffConflicts.get(staff).contains(rc)) staffConflicts.get(staff).add(rc);
             }
         }
 
