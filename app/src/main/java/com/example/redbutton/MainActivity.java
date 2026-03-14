@@ -62,8 +62,8 @@ public class MainActivity extends Activity {
         put("Op6",  Color.parseColor("#D7CCC8")); // Beige (swapped with Op1)
         put("Op7",  Color.parseColor("#8BC34A")); // Lime Green
         put("Op8",  Color.parseColor("#212121")); // Black
-        put("Op9",  Color.parseColor("#CC0000")); // Bold Red
-        put("Op10", Color.parseColor("#7B1FA2")); // Purple
+        put("Op9",  Color.parseColor("#DC143C")); // Crimson Red
+        put("Op10", Color.parseColor("#1565C0")); // Electric Blue
     }};
 
     // Multicast config
@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.0.9";
+    private static final String VERSION = "v1.1.0";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
