@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.0.4";
+    private static final String VERSION = "v1.0.5";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -488,7 +488,7 @@ public class MainActivity extends Activity {
         String fullMsg = msg.toString();
 
         // Apply highlight locally immediately (sender may not receive own multicast)
-        addLogMessage(fullMsg, msgId, opPart);
+        addLogMessage(fullMsg, msgId, "");
         applyPendingHighlight(msgId, opPart, actionPart, staffPart);
 
         // Broadcast to all other tablets
@@ -641,19 +641,14 @@ public class MainActivity extends Activity {
         handler.post(r);
     }
 
-    private void addLogMessage(String message, String msgId, String op) {
+    private void addLogMessage(String message, String msgId, String extra) {
         String time = new SimpleDateFormat("hh:mm a", Locale.US).format(new Date());
         boolean isSystem = message.equals("System");
 
-        // Use explicit op for color lookup — avoids text-scan mismatches between tablets
+        // Determine row color from room
         int rowColor = Color.parseColor("#1A2A3A");
-        if (op != null && !op.isEmpty() && ROOM_COLORS.containsKey(op)) {
-            rowColor = ROOM_COLORS.get(op);
-        } else {
-            // Fallback: scan display text
-            for (Map.Entry<String, Integer> e : ROOM_COLORS.entrySet()) {
-                if (message.contains(e.getKey())) { rowColor = e.getValue(); break; }
-            }
+        for (Map.Entry<String, Integer> e : ROOM_COLORS.entrySet()) {
+            if (message.contains(e.getKey())) { rowColor = e.getValue(); break; }
         }
         final int finalRowColor = rowColor;
         final String finalMessage = message;
@@ -664,7 +659,7 @@ public class MainActivity extends Activity {
             if (messageLog.getChildCount() > 30)
                 messageLog.removeViewAt(messageLog.getChildCount() - 1);
 
-            // Full-width colored row, same compact size
+            // Compact colored row: left color bar + message text
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
@@ -672,12 +667,19 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             rowParams.setMargins(0, dp(1), 0, dp(1));
             row.setLayoutParams(rowParams);
-            // Full-width room color background (or dark for system)
-            row.setBackgroundColor(isSystem ? Color.parseColor("#0d1f3c") : finalRowColor);
-            row.setPadding(dp(8), dp(3), dp(4), dp(3));
+            row.setBackgroundColor(Color.parseColor("#0d1f3c"));
+            row.setPadding(0, dp(3), dp(4), dp(3));
+
+            // Colored left bar = room color indicator
+            if (!isSystem) {
+                android.view.View bar = new android.view.View(this);
+                bar.setBackgroundColor(finalRowColor);
+                bar.setLayoutParams(new LinearLayout.LayoutParams(dp(5), LinearLayout.LayoutParams.MATCH_PARENT));
+                row.addView(bar);
+            }
 
             TextView tv = new TextView(this);
-            tv.setText(finalTime + "  " + finalMessage);
+            tv.setText("  " + finalTime + "  " + finalMessage);
             tv.setTextColor(isSystem ? Color.parseColor("#607D8B") : Color.WHITE);
             tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
             tv.setTypeface(isSystem ? Typeface.DEFAULT : Typeface.DEFAULT_BOLD);
@@ -742,7 +744,7 @@ public class MainActivity extends Activity {
                         final String fId = msgId, fMsg = message, fOp = op, fAction = action, fStaff = staff;
                         handler.post(() -> {
                             if (activeCards.containsKey(fId)) return; // already added locally
-                            addLogMessage(fMsg, fId, fOp);
+                            addLogMessage(fMsg, fId, "");
                             applyPendingHighlight(fId, fOp, fAction, fStaff);
                             playBuzzer();
                         });
