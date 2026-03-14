@@ -121,7 +121,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.2.0";
+    private static final String VERSION = "v1.2.1";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -171,29 +171,13 @@ public class MainActivity extends Activity {
         });
         root.addView(actionGrid);
 
-        // === Staff — Doctors ===
+        // === Staff row — all buttons, fills available width ===
         TextView staffLabel = makeLabel("STAFF");
         root.addView(staffLabel);
-        GridLayout staffDocGrid = makeGrid(STAFF_DOCTORS, staffButtons, COLOR_STAFF, v -> {
+        GridLayout staffGrid = makeGrid(STAFF, staffButtons, COLOR_STAFF, v -> {
             selectButton(staffButtons, (Button) v, b -> selectedStaff = b);
         });
-        root.addView(staffDocGrid);
-
-        // === Staff — Hygiene ===
-        TextView hygieneLabel = makeLabel("  ↳ HYGIENE");
-        root.addView(hygieneLabel);
-        GridLayout staffHygGrid = makeGrid(STAFF_HYGIENE, staffButtons, Color.parseColor("#00695C"), v -> {
-            selectButton(staffButtons, (Button) v, b -> selectedStaff = b);
-        });
-        root.addView(staffHygGrid);
-
-        // === Staff — Front ===
-        TextView frontLabel = makeLabel("  ↳ FRONT");
-        root.addView(frontLabel);
-        GridLayout staffFrontGrid = makeGrid(STAFF_FRONT, staffButtons, Color.parseColor("#4527A0"), v -> {
-            selectButton(staffButtons, (Button) v, b -> selectedStaff = b);
-        });
-        root.addView(staffFrontGrid);
+        root.addView(staffGrid);
 
         // === Bottom bar: Send only ===
         LinearLayout bottomBar = new LinearLayout(this);
@@ -274,6 +258,8 @@ public class MainActivity extends Activity {
         GridLayout grid = new GridLayout(this);
         // Auto-size: up to 7 columns for landscape tablets
         int cols = Math.min(labels.length, 7);
+        // For large staff rows, use more columns to pack into fewer rows
+        if (labels.length > 10) cols = Math.min(labels.length, 8);
         grid.setColumnCount(cols);
         grid.setUseDefaultMargins(false);
 
