@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private int actionFlashIndex = 0;
 
     // Colors
-    private static final String VERSION = "v0.8.4";
+    private static final String VERSION = "v0.8.5";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -128,13 +128,13 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(COLOR_BG);
         root.setPadding(dp(8), dp(8), dp(8), dp(8));
 
-        // === Message log (top) ===
+        // === Message log (top) — compact strip ===
         messageScroll = new ScrollView(this);
         messageScroll.setBackgroundColor(COLOR_MSG_BG);
-        messageScroll.setPadding(dp(8), dp(4), dp(8), dp(4));
+        messageScroll.setPadding(dp(4), dp(2), dp(4), dp(2));
         LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(100));
-        scrollParams.bottomMargin = dp(8);
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(72)); // compact height
+        scrollParams.bottomMargin = dp(6);
         messageScroll.setLayoutParams(scrollParams);
 
         messageLog = new LinearLayout(this);
@@ -235,7 +235,7 @@ public class MainActivity extends Activity {
             Button btn = new Button(this);
             btn.setText(label);
             btn.setTextColor(Color.WHITE);
-            btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
             btn.setTypeface(Typeface.DEFAULT_BOLD);
             btn.setAllCaps(false);
 
@@ -274,7 +274,7 @@ public class MainActivity extends Activity {
             Button btn = new Button(this);
             btn.setText(label);
             btn.setTextColor(Color.WHITE);
-            btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
             btn.setTypeface(Typeface.DEFAULT_BOLD);
             btn.setAllCaps(false);
 
@@ -657,24 +657,29 @@ public class MainActivity extends Activity {
             if (messageLog.getChildCount() > 30)
                 messageLog.removeViewAt(messageLog.getChildCount() - 1);
 
-            // Simple colored row: time + message text
+            // Compact colored row: left color bar + message text
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            rowParams.setMargins(0, dp(2), 0, dp(2));
+            rowParams.setMargins(0, dp(1), 0, dp(1));
             row.setLayoutParams(rowParams);
-            GradientDrawable rowBg = new GradientDrawable();
-            rowBg.setCornerRadius(dp(4));
-            rowBg.setColor(isSystem ? Color.parseColor("#1A2334") : finalRowColor);
-            row.setBackground(rowBg);
-            row.setPadding(dp(8), dp(6), dp(8), dp(6));
+            row.setBackgroundColor(Color.parseColor("#0d1f3c"));
+            row.setPadding(0, dp(3), dp(4), dp(3));
+
+            // Colored left bar = room color indicator
+            if (!isSystem) {
+                android.view.View bar = new android.view.View(this);
+                bar.setBackgroundColor(finalRowColor);
+                bar.setLayoutParams(new LinearLayout.LayoutParams(dp(5), LinearLayout.LayoutParams.MATCH_PARENT));
+                row.addView(bar);
+            }
 
             TextView tv = new TextView(this);
-            tv.setText(finalTime + "  " + finalMessage);
-            tv.setTextColor(Color.WHITE);
-            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            tv.setText("  " + finalTime + "  " + finalMessage);
+            tv.setTextColor(isSystem ? Color.parseColor("#607D8B") : Color.WHITE);
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
             tv.setTypeface(isSystem ? Typeface.DEFAULT : Typeface.DEFAULT_BOLD);
             LinearLayout.LayoutParams tvParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
