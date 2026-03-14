@@ -50,8 +50,9 @@ public class MainActivity extends Activity {
     // Combined for button tracking
     private static final String[] STAFF = {
         "Dr. Riad", "Dr. Zaku", "Amanda", "Assistant",
-        "Randi", "Pavlina", "Lindsay", "Hygiene",
-        "Laura", "Yousef", "Maribel", "Katelyn", "Amanda H", "Front"
+        "Randi", "Pavlina", "Lindsay",
+        "Laura", "Yousef", "Maribel", "Katelyn", "Amanda H",
+        "Hygiene", "Front"
     };
 
     // Actions (what)
@@ -121,7 +122,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.2.1";
+    private static final String VERSION = "v1.2.2";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
