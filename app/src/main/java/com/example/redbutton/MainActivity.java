@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v0.9.1";
+    private static final String VERSION = "v0.9.2";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -477,15 +477,12 @@ public class MainActivity extends Activity {
         broadcastMessage("MSG|" + msgId + "|" + fullMsg
             + "|" + opPart + "|" + actionPart + "|" + staffPart);
 
-        // Clear local composing selection
+        // Clear local composing selection then redraw (handles pending highlights)
         selectedStaff = null;
         selectedAction = null;
         selectedLocation = null;
         currentRoomColor = Color.parseColor("#1E88E5");
-        resetGroup(staffButtons);
-        resetGroup(actionButtons);
-        resetGroup(locationButtons);
-        redrawButtonHighlights(); // re-apply pending received highlights
+        redrawButtonHighlights();
     }
 
     private void acknowledgeCard(String msgId) {
