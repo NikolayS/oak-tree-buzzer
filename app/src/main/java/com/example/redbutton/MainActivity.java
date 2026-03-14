@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v0.8.8";
+    private static final String VERSION = "v0.8.9";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -175,7 +175,24 @@ public class MainActivity extends Activity {
         barParams.topMargin = dp(12);
         bottomBar.setLayoutParams(barParams);
 
-        Button resetBtn = makeControlButton("Reset", Color.parseColor("#B71C1C"), v -> resetAllCommands());
+        // Small reset button
+        Button resetBtn = new Button(this);
+        resetBtn.setText("Reset");
+        resetBtn.setTextColor(Color.parseColor("#EF9A9A"));
+        resetBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        resetBtn.setAllCaps(false);
+        GradientDrawable resetBg = new GradientDrawable();
+        resetBg.setCornerRadius(dp(6));
+        resetBg.setColor(Color.parseColor("#1A1A2E"));
+        resetBg.setStroke(dp(1), Color.parseColor("#B71C1C"));
+        resetBtn.setBackground(resetBg);
+        resetBtn.setPadding(dp(16), dp(8), dp(16), dp(8));
+        LinearLayout.LayoutParams resetParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        resetParams.setMargins(0, 0, dp(8), 0);
+        resetBtn.setLayoutParams(resetParams);
+        resetBtn.setOnClickListener(v -> resetAllCommands());
+
         sendButton = makeControlButton("Send", COLOR_SEND, v -> sendMessage());
         bottomBar.addView(resetBtn);
         bottomBar.addView(sendButton);
