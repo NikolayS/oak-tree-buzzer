@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.0.3";
+    private static final String VERSION = "v1.0.4";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -488,7 +488,7 @@ public class MainActivity extends Activity {
         String fullMsg = msg.toString();
 
         // Apply highlight locally immediately (sender may not receive own multicast)
-        addLogMessage(fullMsg, msgId, "");
+        addLogMessage(fullMsg, msgId, opPart);
         applyPendingHighlight(msgId, opPart, actionPart, staffPart);
 
         // Broadcast to all other tablets
@@ -641,14 +641,19 @@ public class MainActivity extends Activity {
         handler.post(r);
     }
 
-    private void addLogMessage(String message, String msgId, String extra) {
+    private void addLogMessage(String message, String msgId, String op) {
         String time = new SimpleDateFormat("hh:mm a", Locale.US).format(new Date());
         boolean isSystem = message.equals("System");
 
-        // Determine row color from room
+        // Use explicit op for color lookup — avoids text-scan mismatches between tablets
         int rowColor = Color.parseColor("#1A2A3A");
-        for (Map.Entry<String, Integer> e : ROOM_COLORS.entrySet()) {
-            if (message.contains(e.getKey())) { rowColor = e.getValue(); break; }
+        if (op != null && !op.isEmpty() && ROOM_COLORS.containsKey(op)) {
+            rowColor = ROOM_COLORS.get(op);
+        } else {
+            // Fallback: scan display text
+            for (Map.Entry<String, Integer> e : ROOM_COLORS.entrySet()) {
+                if (message.contains(e.getKey())) { rowColor = e.getValue(); break; }
+            }
         }
         final int finalRowColor = rowColor;
         final String finalMessage = message;
@@ -737,7 +742,7 @@ public class MainActivity extends Activity {
                         final String fId = msgId, fMsg = message, fOp = op, fAction = action, fStaff = staff;
                         handler.post(() -> {
                             if (activeCards.containsKey(fId)) return; // already added locally
-                            addLogMessage(fMsg, fId, "");
+                            addLogMessage(fMsg, fId, fOp);
                             applyPendingHighlight(fId, fOp, fAction, fStaff);
                             playBuzzer();
                         });
