@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private int actionFlashIndex = 0;
 
     // Colors
-    private static final String VERSION = "v0.8.3";
+    private static final String VERSION = "v0.8.4";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -563,14 +563,14 @@ public class MainActivity extends Activity {
 
             // Op button: highlight + show "✓ Op#" — tap to acknowledge
             for (Button btn : locationButtons) {
-                if (btn.getText().toString().equals(op) || btn.getText().toString().startsWith(op + "\n")) {
+                if (btn.getText().toString().equals(op) || btn.getText().toString().equals(op + " ✓")) {
                     // Fill with room color, faint white outline, small OK label below op name
                     GradientDrawable opBg = new GradientDrawable();
                     opBg.setCornerRadius(dp(6));
                     opBg.setColor(roomColor);
                     opBg.setStroke(dp(1), Color.argb(80, 255, 255, 255)); // faint white outline
                     btn.setBackground(opBg);
-                    btn.setText(op + "\n✓ ok");
+                    btn.setText(op + " ✓");
                     btn.setTextColor(Color.WHITE);
                     btn.setTypeface(Typeface.DEFAULT_BOLD);
                     final String ackId = pendingMsgId;
