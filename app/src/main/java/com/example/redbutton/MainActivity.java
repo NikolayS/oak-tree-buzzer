@@ -104,7 +104,7 @@ public class MainActivity extends Activity {
     private final Map<String, Button> pendingOpButtons = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v0.7.1";
+    private static final String VERSION = "v0.7.2";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -364,11 +364,12 @@ public class MainActivity extends Activity {
         btn.setTextColor(textColor);
     }
 
-    private void setButtonAppearanceHighlighted(Button btn, int roomColor) {
-        // Keep exact room color, just add thick white border to show selected
+    private void setButtonAppearanceHighlighted(Button btn, int ignored) {
+        // Keep the button's own original color — just add a bright white border
+        int origColor = (int) btn.getTag();
         GradientDrawable bg = new GradientDrawable();
         bg.setCornerRadius(dp(6));
-        bg.setColor(roomColor);
+        bg.setColor(origColor);
         bg.setStroke(dp(4), Color.WHITE);
         btn.setBackground(bg);
         btn.setTextColor(Color.WHITE);
