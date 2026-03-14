@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.0.1";
+    private static final String VERSION = "v0.9.6";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         messageScroll.setBackgroundColor(COLOR_MSG_BG);
         messageScroll.setPadding(dp(4), dp(2), dp(4), dp(2));
         LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(90)); // compact — keep Send button visible
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(90)); // compact but readable
         scrollParams.bottomMargin = dp(6);
         messageScroll.setLayoutParams(scrollParams);
 
@@ -659,35 +659,32 @@ public class MainActivity extends Activity {
             if (messageLog.getChildCount() > 30)
                 messageLog.removeViewAt(messageLog.getChildCount() - 1);
 
-            // Full-width colored bar per message
+            // Compact colored row: left color bar + message text
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            rowParams.setMargins(0, dp(2), 0, dp(2));
+            rowParams.setMargins(0, dp(1), 0, dp(1));
             row.setLayoutParams(rowParams);
+            row.setBackgroundColor(Color.parseColor("#0d1f3c"));
+            row.setPadding(0, dp(3), dp(4), dp(3));
 
-            if (isSystem) {
-                row.setBackgroundColor(Color.parseColor("#0d1f3c"));
-                row.setPadding(dp(8), dp(6), dp(8), dp(6));
-            } else {
-                // Full-width room-color background
-                GradientDrawable rowBg = new GradientDrawable();
-                rowBg.setCornerRadius(dp(4));
-                rowBg.setColor(finalRowColor);
-                row.setBackground(rowBg);
-                row.setPadding(dp(12), dp(10), dp(12), dp(10));
+            // Colored left bar = room color indicator
+            if (!isSystem) {
+                android.view.View bar = new android.view.View(this);
+                bar.setBackgroundColor(finalRowColor);
+                bar.setLayoutParams(new LinearLayout.LayoutParams(dp(5), LinearLayout.LayoutParams.MATCH_PARENT));
+                row.addView(bar);
             }
 
             TextView tv = new TextView(this);
-            tv.setText(isSystem ? ("  " + finalTime + "  " + finalMessage)
-                                : (finalTime + "   " + finalMessage));
+            tv.setText("  " + finalTime + "  " + finalMessage);
             tv.setTextColor(isSystem ? Color.parseColor("#607D8B") : Color.WHITE);
-            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, isSystem ? 11 : 14);
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
             tv.setTypeface(isSystem ? Typeface.DEFAULT : Typeface.DEFAULT_BOLD);
             LinearLayout.LayoutParams tvParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
             tv.setLayoutParams(tvParams);
             row.addView(tv);
 
