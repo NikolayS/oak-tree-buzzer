@@ -1,0 +1,48 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Inject version from tag
+        run: |
+          TAG=${GITHUB_REF_NAME}
+          sed -i "s/private static final String VERSION = \".*\"/private static final String VERSION = \"${TAG}\"/" \
+            app/src/main/java/com/example/redbutton/MainActivity.java
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Rename APK
+        run: |
+          TAG=${GITHUB_REF_NAME}
+          cp app/build/outputs/apk/debug/app-debug.apk oak-tree-buzzer-${TAG}.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Oak Tree Buzzer ${{ github.ref_name }}"
+          body: |
+            Debug build — install directly on Android tablets.
+            Version visible in bottom-right corner of the app.
+          files: oak-tree-buzzer-${{ github.ref_name }}.apk
+          prerelease: ${{ contains(github.ref_name, '-') }}

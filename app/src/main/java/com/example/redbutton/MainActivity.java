@@ -105,7 +105,7 @@ public class MainActivity extends Activity {
     private static final int FLASH_INTERVAL_MS = 800;
 
     // Colors
-    private static final String VERSION = "v0.5.0";
+    private static final String VERSION = "v0.5.1";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
