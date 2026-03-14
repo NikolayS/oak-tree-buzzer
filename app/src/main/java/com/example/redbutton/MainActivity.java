@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.0.0";
+    private static final String VERSION = "v1.0.1";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         messageScroll.setBackgroundColor(COLOR_MSG_BG);
         messageScroll.setPadding(dp(4), dp(2), dp(4), dp(2));
         LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(160)); // tall enough for 3-4 full bars
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(90)); // compact — keep Send button visible
         scrollParams.bottomMargin = dp(6);
         messageScroll.setLayoutParams(scrollParams);
 
