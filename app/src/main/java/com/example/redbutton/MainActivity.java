@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private static final int FLASH_INTERVAL_MS = 800;
 
     // Colors
-    private static final String VERSION = "v0.6.0";
+    private static final String VERSION = "v0.6.1";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -389,6 +389,8 @@ public class MainActivity extends Activity {
         resetGroup(staffButtons);
         resetGroup(actionButtons);
         resetGroup(locationButtons);
+        // Re-apply any still-pending network highlights after reset
+        redrawButtonHighlights();
         // Clear message log
         runOnUiThread(() -> {
             messageLog.removeAllViews();
@@ -502,30 +504,47 @@ public class MainActivity extends Activity {
     }
 
     private void redrawButtonHighlights() {
-        // Reset all buttons to their base color first
+        // Reset all buttons to base color
         resetGroup(staffButtons);
         resetGroup(actionButtons);
         resetGroup(locationButtons);
 
-        // Apply all pending highlights (multiple ops can light up simultaneously)
+        // Re-apply local composing selection (what this tablet has selected but not yet sent)
+        if (selectedLocation != null) {
+            for (Button btn : locationButtons) {
+                if (btn.getText().toString().equals(selectedLocation))
+                    setButtonAppearanceHighlighted(btn, currentRoomColor);
+            }
+        }
+        if (selectedAction != null) {
+            for (Button btn : actionButtons) {
+                if (btn.getText().toString().equals(selectedAction))
+                    setButtonAppearanceHighlighted(btn, currentRoomColor);
+            }
+        }
+        if (selectedStaff != null) {
+            for (Button btn : staffButtons) {
+                if (btn.getText().toString().equals(selectedStaff))
+                    setButtonAppearanceHighlighted(btn, currentRoomColor);
+            }
+        }
+
+        // Apply all pending received highlights on top (network messages not yet ACKed)
         for (String[] h : pendingHighlights.values()) {
             String op = h[0], action = h[1], staff = h[2];
             int roomColor = Integer.parseInt(h[3]);
 
             for (Button btn : locationButtons) {
-                if (btn.getText().toString().equals(op)) {
+                if (btn.getText().toString().equals(op))
                     setButtonAppearanceHighlighted(btn, roomColor);
-                }
             }
             for (Button btn : actionButtons) {
-                if (btn.getText().toString().equals(action)) {
+                if (!action.isEmpty() && btn.getText().toString().equals(action))
                     setButtonAppearanceHighlighted(btn, roomColor);
-                }
             }
             for (Button btn : staffButtons) {
-                if (btn.getText().toString().equals(staff)) {
+                if (!staff.isEmpty() && btn.getText().toString().equals(staff))
                     setButtonAppearanceHighlighted(btn, roomColor);
-                }
             }
         }
     }
