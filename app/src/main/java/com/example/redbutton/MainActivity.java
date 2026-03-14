@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
     private int actionFlashIndex = 0;
 
     // Colors
-    private static final String VERSION = "v0.8.2";
+    private static final String VERSION = "v0.8.3";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -383,16 +383,30 @@ public class MainActivity extends Activity {
         // Broadcast ACK for every pending message so all tablets clear
         for (String msgId : new ArrayList<>(activeCards.keySet())) {
             broadcastMessage("ACK|" + msgId);
-            acknowledgeCard(msgId);
         }
-        // Clear local composing state
+        // Clear all state
+        activeCards.clear();
+        activeCardMsgViews.clear();
+        pendingHighlights.clear();
+        pendingOpButtons.clear();
         selectedStaff = null;
         selectedAction = null;
         selectedLocation = null;
         currentRoomColor = Color.parseColor("#1E88E5");
+        if (actionFlashRunnable != null) {
+            handler.removeCallbacks(actionFlashRunnable);
+            actionFlashRunnable = null;
+        }
+        // Full reset of all buttons back to original
         resetGroup(staffButtons);
         resetGroup(actionButtons);
         resetGroup(locationButtons);
+        for (int i = 0; i < locationButtons.size() && i < LOCATIONS.length; i++) {
+            locationButtons.get(i).setText(LOCATIONS[i]);
+            final int idx = i;
+            locationButtons.get(i).setOnClickListener(v ->
+                selectButton(locationButtons, locationButtons.get(idx), b -> selectedLocation = b));
+        }
     }
 
     private void resetSelection() {
