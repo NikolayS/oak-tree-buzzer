@@ -123,7 +123,7 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.2.4";
+    private static final String VERSION = "v1.2.5";
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -743,42 +743,48 @@ public class MainActivity extends Activity {
 
     private void startListening() {
         new Thread(() -> {
-            try {
-                receiveSocket = new MulticastSocket(PORT);
-                InetAddress group = InetAddress.getByName(MULTICAST_GROUP);
-                receiveSocket.joinGroup(group);
-
-                byte[] buf = new byte[1024];
-                while (listening) {
-                    DatagramPacket packet = new DatagramPacket(buf, buf.length);
-                    receiveSocket.receive(packet);
-                    String received = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
-
-                    if (received.startsWith("ACK|")) {
-                        String ackId = received.substring(4);
-                        handler.post(() -> acknowledgeCard(ackId));
-                    } else if (received.startsWith("MSG|")) {
-                        // Format: MSG|id|displayText|op|action|staff
-                        String[] parts = received.split("\\|", 6);
-                        String msgId  = parts.length > 1 ? parts[1] : "";
-                        String message = parts.length > 2 ? parts[2] : "";
-                        String op     = parts.length > 3 ? parts[3] : "";
-                        String action = parts.length > 4 ? parts[4] : "";
-                        String staff  = parts.length > 5 ? parts[5] : "";
-                        final String fId = msgId, fMsg = message, fOp = op, fAction = action, fStaff = staff;
-                        handler.post(() -> {
-                            if (activeCards.containsKey(fId)) return; // already added locally
-                            addLogMessage(fMsg, fId, fOp);
-                            applyPendingHighlight(fId, fOp, fAction, fStaff);
-                            playBuzzerForStaff(fStaff);
-                        });
+            while (listening) {
+                try {
+                    // Close any stale socket before reopening
+                    if (receiveSocket != null && !receiveSocket.isClosed()) {
+                        try { receiveSocket.close(); } catch (Exception ignored) {}
                     }
-                }
-            } catch (Exception e) {
-                if (listening) {
-                    handler.post(() ->
-                        Toast.makeText(this, "Listen error: " + e.getMessage(),
-                            Toast.LENGTH_SHORT).show());
+                    receiveSocket = new MulticastSocket(PORT);
+                    receiveSocket.setSoTimeout(0); // no timeout — block indefinitely
+                    InetAddress group = InetAddress.getByName(MULTICAST_GROUP);
+                    receiveSocket.joinGroup(group);
+
+                    while (listening) {
+                        byte[] buf = new byte[1024]; // fresh buffer every packet
+                        DatagramPacket packet = new DatagramPacket(buf, buf.length);
+                        receiveSocket.receive(packet);
+                        String received = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
+
+                        if (received.startsWith("ACK|")) {
+                            String ackId = received.substring(4);
+                            handler.post(() -> acknowledgeCard(ackId));
+                        } else if (received.startsWith("MSG|")) {
+                            // Format: MSG|id|displayText|op|action|staff
+                            String[] parts = received.split("\\|", 6);
+                            String msgId   = parts.length > 1 ? parts[1] : "";
+                            String message = parts.length > 2 ? parts[2] : "";
+                            String op      = parts.length > 3 ? parts[3] : "";
+                            String action  = parts.length > 4 ? parts[4] : "";
+                            String staff   = parts.length > 5 ? parts[5] : "";
+                            final String fId = msgId, fMsg = message, fOp = op, fAction = action, fStaff = staff;
+                            handler.post(() -> {
+                                if (activeCards.containsKey(fId)) return;
+                                addLogMessage(fMsg, fId, fOp);
+                                applyPendingHighlight(fId, fOp, fAction, fStaff);
+                                playBuzzerForStaff(fStaff);
+                            });
+                        }
+                    }
+                } catch (Exception e) {
+                    // Socket error — log and reconnect after short delay
+                    if (listening) {
+                        try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+                    }
                 }
             }
         }).start();
