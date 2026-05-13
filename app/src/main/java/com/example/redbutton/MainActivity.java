@@ -2,9 +2,12 @@ package com.example.redbutton;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.content.res.AssetFileDescriptor;
+import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
 import android.os.Bundle;
@@ -105,6 +108,10 @@ public class MainActivity extends Activity {
     private MulticastSocket receiveSocket;
     private volatile boolean listening = true;
 
+    // Locks to keep multicast and CPU alive when screen is off
+    private android.net.wifi.WifiManager.MulticastLock multicastLock;
+    private android.os.PowerManager.WakeLock listenerWakeLock;
+
     // Track active message cards by ID for network ACK
     private final Map<String, LinearLayout> activeCards = new HashMap<>();
     private final Map<String, TextView> activeCardMsgViews = new HashMap<>();
@@ -115,6 +122,9 @@ public class MainActivity extends Activity {
     // Pending button highlights: msgId -> [op, action, staff, roomColor]
     private final Map<String, String[]> pendingHighlights = new HashMap<>();
 
+    // Messages sent by this tablet — cleaned up when ACK arrives.
+    private final java.util.Set<String> localSentIds = new java.util.HashSet<>();
+
     // msgId -> op button that shows ✓ OK overlay
     private final Map<String, Button> pendingOpButtons = new HashMap<>();
 
@@ -123,7 +133,11 @@ public class MainActivity extends Activity {
     private final Map<Button, Integer> flashIndices = new HashMap<>();
 
     // Colors
-    private static final String VERSION = "v1.2.5";
+    private static final String VERSION = "v1.3.6";
+    static final String EXTRA_DISABLE_BACKGROUND_WORK =
+        "com.example.redbutton.DISABLE_BACKGROUND_WORK";
+    private static final int MESSAGE_LOG_HEIGHT_DP = 190;
+    private static final int MESSAGE_TEXT_SP = 24;
 
     private static final int COLOR_BG = Color.parseColor("#0a1628");
     private static final int COLOR_STAFF = Color.parseColor("#1565C0");
@@ -143,43 +157,55 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(COLOR_BG);
         root.setPadding(dp(8), dp(8), dp(8), dp(8));
 
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setBackgroundColor(COLOR_BG);
+
         // === Message log (top) — compact strip ===
         messageScroll = new ScrollView(this);
         messageScroll.setBackgroundColor(COLOR_MSG_BG);
         messageScroll.setPadding(dp(4), dp(2), dp(4), dp(2));
         LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(90)); // compact but readable
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(MESSAGE_LOG_HEIGHT_DP)); // larger alerts for clinic readability
         scrollParams.bottomMargin = dp(6);
         messageScroll.setLayoutParams(scrollParams);
 
         messageLog = new LinearLayout(this);
         messageLog.setOrientation(LinearLayout.VERTICAL);
         messageScroll.addView(messageLog);
-        root.addView(messageScroll);
+        content.addView(messageScroll);
 
         // === Op row (room — drives card color) ===
         TextView locLabel = makeLabel("OP");
-        root.addView(locLabel);
+        content.addView(locLabel);
         GridLayout locGrid = makeRoomGrid(LOCATIONS, locationButtons, v -> {
             selectButton(locationButtons, (Button) v, b -> selectedLocation = b);
         });
-        root.addView(locGrid);
+        content.addView(locGrid);
 
         // === Action row ===
         TextView actionLabel = makeLabel("ACTION");
-        root.addView(actionLabel);
+        content.addView(actionLabel);
         GridLayout actionGrid = makeGrid(ACTIONS, actionButtons, COLOR_ACTION, v -> {
             selectButton(actionButtons, (Button) v, b -> selectedAction = b);
         });
-        root.addView(actionGrid);
+        content.addView(actionGrid);
 
         // === Staff row — all buttons, fills available width ===
         TextView staffLabel = makeLabel("STAFF");
-        root.addView(staffLabel);
+        content.addView(staffLabel);
         GridLayout staffGrid = makeGrid(STAFF, staffButtons, COLOR_STAFF, v -> {
             selectButton(staffButtons, (Button) v, b -> selectedStaff = b);
         });
-        root.addView(staffGrid);
+        content.addView(staffGrid);
+
+        // Scroll only the command area; keep Reset/Send pinned and always visible.
+        ScrollView contentScroll = new ScrollView(this);
+        contentScroll.setBackgroundColor(COLOR_BG);
+        contentScroll.addView(content);
+        LinearLayout.LayoutParams contentScrollParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
+        root.addView(contentScroll, contentScrollParams);
 
         // === Bottom bar: Send only ===
         LinearLayout bottomBar = new LinearLayout(this);
@@ -225,17 +251,56 @@ public class MainActivity extends Activity {
         versionLabel.setLayoutParams(vParams);
         root.addView(versionLabel);
 
-        // Wrap root in ScrollView so nothing gets clipped on small screens
-        ScrollView rootScroll = new ScrollView(this);
-        rootScroll.setBackgroundColor(COLOR_BG);
-        rootScroll.addView(root);
-        setContentView(rootScroll);
+        setContentView(root);
 
-        // Start listening for multicast messages
-        startListening();
+        if (!getIntent().getBooleanExtra(EXTRA_DISABLE_BACKGROUND_WORK, false)
+                && !isRunningInstrumentedTest()) {
+            // Acquire WiFi multicast lock — prevents Android WiFi power saving from
+            // dropping multicast packets when the screen is off or app is idle
+            try {
+                android.net.wifi.WifiManager wm =
+                    (android.net.wifi.WifiManager) getApplicationContext()
+                        .getSystemService(WIFI_SERVICE);
+                if (wm != null) {
+                    multicastLock = wm.createMulticastLock("OakBuzzer:multicast");
+                    multicastLock.setReferenceCounted(false);
+                    multicastLock.acquire();
+                }
+            } catch (Exception ignored) {}
+
+            // Acquire partial wake lock — keeps listener thread running when screen dims
+            try {
+                android.os.PowerManager pm =
+                    (android.os.PowerManager) getSystemService(POWER_SERVICE);
+                if (pm != null) {
+                    listenerWakeLock = pm.newWakeLock(
+                        android.os.PowerManager.PARTIAL_WAKE_LOCK, "OakBuzzer:listener");
+                    listenerWakeLock.setReferenceCounted(false);
+                    listenerWakeLock.acquire();
+                }
+            } catch (Exception ignored) {}
+
+            // Start foreground service — keeps the process alive all day (prevents Android from killing it)
+            try {
+                Intent serviceIntent = new Intent(this, BuzzerService.class);
+                startForegroundService(serviceIntent);
+            } catch (Exception ignored) {}
+
+            // Start listening for multicast messages
+            startListening();
+        }
 
         // Welcome message
         addLogMessage("System", "Ready", "");
+    }
+
+    private boolean isRunningInstrumentedTest() {
+        try {
+            Class.forName("androidx.test.platform.app.InstrumentationRegistry");
+            return true;
+        } catch (ClassNotFoundException ignored) {
+            return false;
+        }
     }
 
     // === UI Helpers ===
@@ -513,6 +578,7 @@ public class MainActivity extends Activity {
 
         // Apply highlight locally immediately (sender may not receive own multicast)
         addLogMessage(fullMsg, msgId, "");
+        localSentIds.add(msgId);
         applyPendingHighlight(msgId, opPart, actionPart, staffPart);
 
         // Broadcast to all other tablets
@@ -525,6 +591,9 @@ public class MainActivity extends Activity {
         selectedAction = null;
         selectedLocation = null;
         currentRoomColor = Color.parseColor("#1E88E5");
+        resetGroup(staffButtons);
+        resetGroup(actionButtons);
+        resetLocationButtons();
         redrawButtonHighlights();
     }
 
@@ -536,6 +605,7 @@ public class MainActivity extends Activity {
         activeCardMsgViews.remove(msgId);
         // Restore Op button to blue
         pendingOpButtons.remove(msgId);
+        localSentIds.remove(msgId);
         // Clear highlight — redrawButtonHighlights will restore remaining pending state
         clearPendingHighlight(msgId);
     }
@@ -602,6 +672,9 @@ public class MainActivity extends Activity {
                     });
                 }
             }
+
+            // Show action/staff highlights on every tablet, including the sender.
+            // The selected command should remain visible until someone taps ✓ OK.
 
             // Collect action conflicts
             if (!action.isEmpty()) {
@@ -689,23 +762,23 @@ public class MainActivity extends Activity {
             row.setGravity(Gravity.CENTER_VERTICAL);
             LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            rowParams.setMargins(0, dp(1), 0, dp(1));
+            rowParams.setMargins(0, dp(3), 0, dp(3));
             row.setLayoutParams(rowParams);
             row.setBackgroundColor(Color.parseColor("#0d1f3c"));
-            row.setPadding(0, dp(3), dp(4), dp(3));
+            row.setPadding(0, dp(8), dp(8), dp(8));
 
             // Colored left bar = room color indicator
             if (!isSystem) {
                 android.view.View bar = new android.view.View(this);
                 bar.setBackgroundColor(finalRowColor);
-                bar.setLayoutParams(new LinearLayout.LayoutParams(dp(5), LinearLayout.LayoutParams.MATCH_PARENT));
+                bar.setLayoutParams(new LinearLayout.LayoutParams(dp(9), LinearLayout.LayoutParams.MATCH_PARENT));
                 row.addView(bar);
             }
 
             TextView tv = new TextView(this);
             tv.setText("  " + finalTime + "  " + finalMessage);
             tv.setTextColor(isSystem ? Color.parseColor("#607D8B") : Color.WHITE);
-            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, isSystem ? 14 : MESSAGE_TEXT_SP);
             tv.setTypeface(isSystem ? Typeface.DEFAULT : Typeface.DEFAULT_BOLD);
             LinearLayout.LayoutParams tvParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
@@ -750,7 +823,7 @@ public class MainActivity extends Activity {
                         try { receiveSocket.close(); } catch (Exception ignored) {}
                     }
                     receiveSocket = new MulticastSocket(PORT);
-                    receiveSocket.setSoTimeout(0); // no timeout — block indefinitely
+                    receiveSocket.setSoTimeout(30000); // 30s timeout — detect dead socket & reconnect
                     InetAddress group = InetAddress.getByName(MULTICAST_GROUP);
                     receiveSocket.joinGroup(group);
 
@@ -811,53 +884,73 @@ public class MainActivity extends Activity {
 
         switch (staff == null ? "" : staff) {
             case "Dr. Riad":
-                // 💧 Water drop
-                playSound(R.raw.sound_water_drop);
-                break;
-            case "Randi":
-            case "Pavlina":
-            case "Lindsay":
-            case "Hygiene":
-                // 🐦 Bird chirp
-                playSound(R.raw.sound_bird_chirp);
+                playSound(R.raw.sound_dr_riad);
                 break;
             case "Dr. Zaku":
-                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 500}, new int[]{350, 350});
+                playSound(R.raw.sound_dr_zaku);
                 break;
             case "Amanda":
-                playPattern(ToneGenerator.TONE_SUP_CONGESTION, new int[]{0, 350}, new int[]{250, 400});
-                break;
-            case "Laura":
-                playPattern(ToneGenerator.TONE_SUP_RADIO_ACK, new int[]{0, 350}, new int[]{280, 280});
-                break;
-            case "Yousef":
-                playPattern(ToneGenerator.TONE_SUP_RADIO_NOTAVAIL, new int[]{0}, new int[]{900});
-                break;
-            case "Maribel":
-                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 280, 560, 840}, new int[]{200, 200, 200, 200});
-                break;
-            case "Katelyn":
-                playPattern(ToneGenerator.TONE_SUP_CONGESTION, new int[]{0, 550}, new int[]{400, 400});
+                playSound(R.raw.sound_amanda);
                 break;
             case "Amanda H":
-                playPattern(ToneGenerator.TONE_SUP_RADIO_ACK, new int[]{0, 500, 800}, new int[]{400, 200, 400});
+                playSound(R.raw.sound_amanda_h);
+                break;
+            case "Randi":
+                playSound(R.raw.sound_randi);
+                break;
+            case "Pavlina":
+                playSound(R.raw.sound_pavlina);
+                break;
+            case "Lindsay":
+                playSound(R.raw.sound_lindsay);
+                break;
+            case "Laura":
+                playSound(R.raw.sound_laura);
+                break;
+            case "Yousef":
+                playSound(R.raw.sound_yousef);
+                break;
+            case "Maribel":
+                playSound(R.raw.sound_maribel);
+                break;
+            case "Katelyn":
+                playSound(R.raw.sound_katelyn);
+                break;
+            case "Hygiene":
+                playSound(R.raw.sound_hygiene);
+                break;
+            case "Front":
+                playSound(R.raw.sound_front);
                 break;
             case "Assistant":
-            case "Front":
+                playSound(R.raw.sound_assistant);
+                break;
             default:
-                playPattern(ToneGenerator.TONE_SUP_DIAL, new int[]{0, 320, 640}, new int[]{250, 250, 250});
+                playSound(R.raw.sound_default);
                 break;
         }
     }
 
     private void playSound(int resId) {
         try {
-            MediaPlayer mp = MediaPlayer.create(this, resId);
-            if (mp != null) {
-                mp.setVolume(1.0f, 1.0f);
-                mp.start();
-                mp.setOnCompletionListener(MediaPlayer::release);
-            }
+            AssetFileDescriptor afd = getResources().openRawResourceFd(resId);
+            if (afd == null) return;
+
+            MediaPlayer mp = new MediaPlayer();
+            mp.setAudioAttributes(new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build());
+            mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+            afd.close();
+            mp.setVolume(1.0f, 1.0f);
+            mp.setOnPreparedListener(MediaPlayer::start);
+            mp.setOnCompletionListener(MediaPlayer::release);
+            mp.setOnErrorListener((player, what, extra) -> {
+                player.release();
+                return true;
+            });
+            mp.prepareAsync();
         } catch (Exception ignored) {}
     }
 
@@ -923,6 +1016,12 @@ public class MainActivity extends Activity {
         if (receiveSocket != null) {
             try { receiveSocket.close(); } catch (Exception ignored) {}
         }
+        try {
+            if (multicastLock != null && multicastLock.isHeld()) multicastLock.release();
+        } catch (Exception ignored) {}
+        try {
+            if (listenerWakeLock != null && listenerWakeLock.isHeld()) listenerWakeLock.release();
+        } catch (Exception ignored) {}
         super.onDestroy();
     }
 }
